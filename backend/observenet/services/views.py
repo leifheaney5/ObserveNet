@@ -222,17 +222,25 @@ async def network_capabilities(session: AsyncSession, now: datetime) -> list[Net
 
 async def primary_selection(session: AsyncSession) -> dict[str, Any]:
     """Which live series the Overview should chart."""
+    # Prefer a source that actually reports NIC counters (in demo mode the first source is the
+    # synthetic gateway, which has none), then real Linux agents, then the oldest source.
+    has_nic = (
+        select(MetricSeries.id)
+        .where(MetricSeries.source_id == DataSource.id, MetricSeries.metric == "net.rx_bps")
+        .exists()
+    )
     source = (
         await session.execute(
             select(DataSource)
             .where(
                 DataSource.kind.in_(("linux_agent", "demo", "windows_agent")), DataSource.enabled.is_(True)
             )
-            .order_by(DataSource.kind != "linux_agent", DataSource.id)
-            .limit(1)  # fmt: skip
+            .order_by(has_nic.desc(), DataSource.kind != "linux_agent", DataSource.id)
+            .limit(1)
         )
     ).scalar_one_or_none()
     out: dict[str, Any] = {"source_id": None, "source_name": None, "interface": None, "gateway_target_id": None,
+                           "probe_source_id": None, "probe_source_name": None,
                            "wan_source_id": None, "wan_label": None}  # fmt: skip
     if source is not None:
         out["source_id"], out["source_name"] = source.id, source.name
@@ -260,15 +268,33 @@ async def primary_selection(session: AsyncSession) -> dict[str, Any]:
                     .limit(1)  # fmt: skip
                 )
             ).scalar_one_or_none()
-    gw = (
+    # The gateway target that has results, together with the source that produced them, so the
+    # latency chart and its provenance label always refer to the collector that measured it.
+    probed = (
         await session.execute(
-            select(ProbeTarget.id)
-            .where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True))
-            .order_by(ProbeTarget.id)
+            select(ProbeTarget.id, MetricSeries.source_id, DataSource.name)
+            .join(MetricSeries, MetricSeries.probe_target_id == ProbeTarget.id)
+            .join(DataSource, DataSource.id == MetricSeries.source_id)
+            .where(
+                ProbeTarget.scope == "gateway",
+                ProbeTarget.enabled.is_(True),
+                MetricSeries.metric == "probe.success",
+            )
+            .order_by(MetricSeries.last_ts.desc().nulls_last(), ProbeTarget.id)
             .limit(1)
         )
-    ).scalar_one_or_none()
-    out["gateway_target_id"] = gw
+    ).first()
+    if probed is not None:
+        out["gateway_target_id"], out["probe_source_id"], out["probe_source_name"] = probed
+    else:
+        out["gateway_target_id"] = (
+            await session.execute(
+                select(ProbeTarget.id)
+                .where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True))
+                .order_by(ProbeTarget.id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
     wan = (
         await session.execute(
             select(MetricSeries).where(MetricSeries.metric == "wan.rx_bps").order_by(MetricSeries.id).limit(1)
@@ -357,7 +383,13 @@ async def build_overview(
             kpis.append(Kpi(key=key, label=label, value=None, unit=unit, state="unavailable",
                             reason="No gateway probe target is enabled (Settings → Probe targets)."))  # fmt: skip
     else:
-        pts = await load_points(session, target_id=gw_id, since=now - timedelta(seconds=window_s))
+        probe_src = primary["probe_source_name"] or src_name
+        pts = await load_points(
+            session,
+            target_id=gw_id,
+            since=now - timedelta(seconds=window_s),
+            source_id=primary["probe_source_id"],
+        )
         stats = compute_window_stats(pts, now=now, window_s=window_s)
         detail = {"window_s": window_s, "sample_size": stats.sample_size, "target_id": gw_id,
                   "jitter_ms": stats.jitter_ms, "p95_ms": stats.latency_p95_ms}  # fmt: skip
@@ -370,13 +402,13 @@ async def build_overview(
         else:
             kpis.append(Kpi(
                 key="gateway_latency", label="Gateway latency", value=stats.latency_avg_ms, unit="ms",
-                state="ok" if stats.latency_avg_ms is not None else "unknown", ts=stats.last_ts, source=src_name,
+                state="ok" if stats.latency_avg_ms is not None else "unknown", ts=stats.last_ts, source=probe_src,
                 observation_point="active_probe", detail=detail,
                 reason=None if stats.latency_avg_ms is not None
                 else "The gateway did not answer any probe in the window. It may filter ICMP; this alone is not an outage.",
             ))  # fmt: skip
             kpis.append(Kpi(key="packet_loss", label="Packet loss", value=stats.loss_pct, unit="percent", state="ok",
-                            ts=stats.last_ts, source=src_name, observation_point="active_probe", detail=detail))  # fmt: skip
+                            ts=stats.last_ts, source=probe_src, observation_point="active_probe", detail=detail))  # fmt: skip
 
     # Findings
     sev_rows = (

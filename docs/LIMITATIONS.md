@@ -56,6 +56,12 @@ code exists but was never run where it matters.
     container during the build, but CI has no Neo4j service, so regressions would not be
     caught. It projects only the small observed topology; it adds little until a gateway
     provider supplies richer relationships.
+12a. **The real-mode "fixed → Resolved" transition was not exercised live.** On real
+    data the build ran Verify against an existing finding and got *Still observed* from
+    fresh evidence (about 5 s after the request). The *Resolved* path is covered by the
+    backend tests and by the end-to-end test in demo mode, which uses the same engine;
+    changing a real host's configuration to watch it flip was not done in the build
+    sandbox.
 13. **systemd unit untested.** `agents/linux/observenet-agent.service` was written for
     the native install but never run (no systemd in the build environment).
 14. **CI workflow never ran on GitHub.** `.github/workflows/ci.yml` is unverified

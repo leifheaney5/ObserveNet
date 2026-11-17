@@ -87,7 +87,7 @@ sudo python3 -m venv /opt/observenet-agent/venv
 sudo /opt/observenet-agent/venv/bin/pip install /path/to/ObserveNet/agents/linux
 ```
 
-Issue a dedicated token (Settings → Tokens in the UI, or):
+Issue a dedicated token (Settings → Agent tokens in the UI, or):
 
 ```bash
 docker compose exec api python -m observenet.cli create-agent-token --name linux-leif-native --ttl-days 90

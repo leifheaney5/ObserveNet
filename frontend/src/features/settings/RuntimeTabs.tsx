@@ -297,6 +297,7 @@ function PostureForm({ settings, save, flash }: { settings: FullSettings; save: 
   const { isAdmin } = useAuth();
   const [listeners, setListeners] = useState(settings.posture.listener_allowlist);
   const [docker, setDocker] = useState(settings.posture.docker_port_allowlist);
+  const [windows, setWindows] = useState(settings.posture.windows_listener_allowlist);
   const [nums, setNums] = useState(() => toDraft({ verify_timeout_s: settings.posture.verify_timeout_s }));
   const disabled = !isAdmin || save.isPending;
   return (
@@ -304,7 +305,7 @@ function PostureForm({ settings, save, flash }: { settings: FullSettings; save: 
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate(
-          { ...settings, posture: { listener_allowlist: listeners, docker_port_allowlist: docker, verify_timeout_s: Number(nums.verify_timeout_s) } },
+          { ...settings, posture: { listener_allowlist: listeners, docker_port_allowlist: docker, windows_listener_allowlist: windows, verify_timeout_s: Number(nums.verify_timeout_s) } },
           { onSuccess: () => flash.mark("saved") },
         );
       }}
@@ -321,14 +322,25 @@ function PostureForm({ settings, save, flash }: { settings: FullSettings; save: 
         <CardBody className="space-y-5">
           <ListEditor
             id="listener-allowlist"
-            label="Host listener allowlist"
+            label="Linux listener allowlist"
             values={listeners}
             onChange={setListeners}
             disabled={disabled}
             placeholder="tcp/22"
             validate={validatePortEntry}
             emptyText="Nothing allowlisted: every wildcard listener is reported."
-            hint="Format proto/port, for example tcp/22 or udp/5353. Applies to Linux and Windows hosts running an agent."
+            hint="Format proto/port, for example tcp/22 or udp/5353. Applies to Linux hosts running an agent."
+          />
+          <ListEditor
+            id="windows-listener-allowlist"
+            label="Windows listener allowlist"
+            values={windows}
+            onChange={setWindows}
+            disabled={disabled}
+            placeholder="tcp/445"
+            validate={validatePortEntry}
+            emptyText="Nothing allowlisted: every wildcard listener on Windows hosts is reported."
+            hint="Defaults cover listeners every stock Windows installation has (RPC, NetBIOS/SMB, mDNS/LLMNR/SSDP, WS-Discovery). SMB exposure is judged by the firewall and SMBv1 checks instead. These defaults were not validated on a real Windows host."
           />
           <ListEditor
             id="docker-allowlist"

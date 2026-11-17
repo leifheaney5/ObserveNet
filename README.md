@@ -50,8 +50,8 @@ verifies *configuration*, by re-reading it.
 ```
 
 Stack: Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2 + Alembic · PostgreSQL 16 ·
-Redis + Dramatiq · Strawberry GraphQL · OpenTelemetry + Prometheus · React 18 ·
-TypeScript · Vite · Tailwind · Radix · Recharts · TanStack Query · Docker Compose.
+Redis + Dramatiq · Strawberry GraphQL · OpenTelemetry + Prometheus · optional Neo4j ·
+React 18 · TypeScript · Vite · Tailwind · Radix · Recharts · TanStack Query · Docker Compose.
 Details and trade-offs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
@@ -196,7 +196,42 @@ Building behind a TLS-inspecting proxy: see the header of
 
 ## Validation results
 
-VALIDATION_PLACEHOLDER
+Everything below was executed in the build sandbox on the final code (2026-11-17).
+Nothing here was run on `linux-leif` or on GitHub Actions.
+
+| Check | Command | Result |
+|---|---|---|
+| Backend tests (real PostgreSQL 16, fakeredis) | `cd backend && uv run pytest` | **343 passed**, 0 failed |
+| Backend lint / format / types | `uv run ruff check .` · `uv run ruff format --check .` · `uv run mypy observenet` | clean · 77 files formatted · no issues in 57 files |
+| Linux agent tests | `cd agents/linux && uv run pytest` | **65 passed**, 0 failed |
+| Linux agent lint / format / types | `uv run ruff check .` · `uv run ruff format --check .` · `uv run mypy observenet_agent` | clean · no issues in 7 files |
+| Frontend unit tests | `cd frontend && npm test` | **30 passed** (5 files) |
+| Frontend lint / types / build | `npm run lint` · `npm run typecheck` · `npm run build` | clean · clean · built |
+| Migrations | Alembic up → down → up inside the backend suite; `migrate` service in Compose | pass |
+| Image builds | backend, web, collector images | built |
+| Compose, real mode | `docker compose up -d` | all 7 services healthy; containerized non-root collector reported live NIC throughput, ICMP gateway latency (`icmp_dgram`), neighbour sightings and 2 findings from this host's socket table |
+| End to end, demo mode | `E2E_MODE=demo npm run e2e` against the Compose stack | **8 passed**, including Find → Verify (*still observed*) → Fix → Verify (*resolved* with before/after diff) |
+| End to end, real mode | `E2E_MODE=real npm run e2e` against the Compose stack | **7 passed**, 1 skipped (demo-only spec) |
+| Verify on real data | `POST /findings/{id}/verify` on a real finding | fresh evidence ~5 s after the request → *still observed* (correct: nothing was changed) |
+| Observability profile | Prometheus + Jaeger | 3/3 scrape targets up; traces from `observenet-api` and `observenet-worker`; `/metrics` returns 404 through the web proxy |
+| Neo4j projection | manual run against `neo4j:5-community` | two idempotent syncs; Cypher and PostgreSQL returned identical peers |
+| Dependency audit | `uvx pip-audit` (backend, locked) · `npm audit --omit=dev` | no known vulnerabilities · 0 vulnerabilities |
+
+Not passing or not run, stated plainly:
+
+- `npm audit` including dev tooling reports a `picomatch` ReDoS advisory with no fixed
+  version (build/test tooling only; nothing shipped to the browser).
+- The end-to-end run first failed 1 of 8: the WebSocket was rejected behind nginx because
+  the proxy dropped the port from `Host`. Fixed in `frontend/nginx.conf`, then re-run.
+- Not run at all: the Windows agent, the systemd unit, the GitHub Actions workflow, the
+  `tunnel` and `docker-inventory` profiles, and any deployment to `linux-leif` or the
+  public hostname. The real-mode *Resolved* transition was not exercised live (see
+  `docs/LIMITATIONS.md`).
+
+Screenshots from those runs:
+[real mode](docs/screenshots/real-overview.png) ·
+[demo mode](docs/screenshots/demo-overview.png) ·
+[finding with verification history (demo)](docs/screenshots/demo-finding-verify.png)
 
 ## Repository layout
 

@@ -141,10 +141,10 @@ back dropped data.
 
 Rotate an agent token:
 
-1. Settings → Tokens → New token (or
+1. Settings → Agent tokens → New token (or
    `docker compose exec api python -m observenet.cli create-agent-token --name <name> --ttl-days 90`).
 2. Put the new token on the agent host and restart the agent.
-3. Revoke the old token (Settings → Tokens). Revocation is immediate.
+3. Revoke the old token (Settings → Agent tokens). Revocation is immediate.
 
 A token binds to the first agent id that uses it. A new token presented by an existing
 agent binds to that agent's existing source, so history continues.

@@ -64,20 +64,23 @@ export function KpiCard({ kpi, icon, to, live, footer, demo }: Props) {
             <span className="text-faint">{icon}</span>
             {kpi.label}
           </span>
-          <span className="flex items-center gap-1.5">
-            {demo && <DemoTag />}
-            <ArrowUpRight className="h-3.5 w-3.5 text-faint opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
-          </span>
+          <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-faint opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
         </div>
         {measured ? (
           <p className="mt-2 flex items-baseline gap-1.5">
             <span className={cn("num text-[26px] font-semibold leading-none tracking-tight", kpi.state === "stale" ? "text-muted" : "text-ink")}>{d.value}</span>
             <span className="text-xs text-muted">{d.unit}</span>
             {kpi.state === "stale" && <StateBadge state="stale" className="ml-1" />}
+            {demo && (
+              <span className="ml-auto self-center">
+                <DemoTag />
+              </span>
+            )}
           </p>
         ) : (
-          <div className="mt-2.5">
+          <div className="mt-2.5 flex items-center justify-between gap-2">
             <StateBadge state={kpi.state} />
+            {demo && <DemoTag />}
           </div>
         )}
         <div className="mt-2 min-h-[30px]">

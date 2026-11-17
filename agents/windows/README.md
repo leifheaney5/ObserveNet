@@ -63,7 +63,7 @@ Check that `samples`, `inventory` and `posture` look right and that every sectio
 
 ## 2. Create a token
 
-In ObserveNet: Settings → Tokens → New token (name it after the PC), or on the server:
+In ObserveNet: Settings → Agent tokens → New token (name it after the PC), or on the server:
 
 ```bash
 docker compose exec api python -m observenet.cli create-agent-token --name windows-pc --ttl-days 90

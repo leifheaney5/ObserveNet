@@ -49,6 +49,8 @@ export function OverviewPage() {
     source_name?: string | null;
     interface?: string | null;
     gateway_target_id?: number | null;
+    probe_source_id?: number | null;
+    probe_source_name?: string | null;
     wan_source_id?: number | null;
     wan_label?: string | null;
   };
@@ -61,7 +63,9 @@ export function OverviewPage() {
   const rx = useSeriesHistory({ metric: rxMetric, sourceId: tSource, label: tLabel }, period);
   const tx = useSeriesHistory({ metric: txMetric, sourceId: tSource, label: tLabel }, period);
   const gwLabel = primary.gateway_target_id != null ? `target:${primary.gateway_target_id}` : null;
-  const latency = useSeriesHistory({ metric: "probe.latency_ms", sourceId: primary.source_id, label: gwLabel }, period);
+  const probeSource = primary.probe_source_id ?? primary.source_id;
+  const probeSourceName = primary.probe_source_name ?? primary.source_name;
+  const latency = useSeriesHistory({ metric: "probe.latency_ms", sourceId: probeSource, label: gwLabel }, period);
 
   const liveWanRx = useLiveKpi(primary.wan_source_id, "wan.rx_bps", primary.wan_label);
   const liveWanTx = useLiveKpi(primary.wan_source_id, "wan.tx_bps", primary.wan_label);
@@ -222,7 +226,7 @@ export function OverviewPage() {
           <CardHeader
             icon={<Timer className="h-4 w-4" />}
             title="Gateway latency"
-            subtitle={gwLabel ? <>Round trip from {primary.source_name ?? "the collector"} to its default gateway.</> : "No gateway probe is enabled."}
+            subtitle={gwLabel ? <>Round trip from {probeSourceName ?? "the collector"} to its default gateway.</> : "No gateway probe is enabled."}
             actions={demoMode ? <DemoTag /> : undefined}
           />
           <CardBody>

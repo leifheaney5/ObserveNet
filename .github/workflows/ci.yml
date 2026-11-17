@@ -163,6 +163,7 @@ jobs:
         run: |
           export E2E_BASE_URL=http://127.0.0.1:8080
           export E2E_USERNAME=admin
+          export E2E_MODE=demo
           export E2E_PASSWORD="$(grep '^OBSERVENET_ADMIN_PASSWORD=' ../.env | cut -d= -f2-)"
           npm run e2e
       - name: Collect logs on failure

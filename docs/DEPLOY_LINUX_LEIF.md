@@ -173,10 +173,9 @@ echo 'net.ipv4.ping_group_range = 0 2147483647' | sudo tee /etc/sysctl.d/60-obse
 sudo sysctl --system
 ```
 
-The collector picks it up on its next probe; no restart needed. The alternative,
-`NET_RAW`, is described as optional in `compose.yaml`; note that a capability added to a
-container is not effective for a non-root process unless it is made ambient, so prefer
-the sysctl for the bundled collector.
+The collector picks it up on its next probe; no restart needed. `compose.yaml` does not
+add `NET_RAW`: a capability added to a container is not effective for a non-root process
+unless it is made ambient, so the sysctl is the supported route for the bundled collector.
 
 ### Optional: Docker published ports
 

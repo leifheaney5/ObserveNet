@@ -34,6 +34,7 @@ export function normalizeSettings(s: RuntimeSettings): FullSettings {
       ...s.posture,
       listener_allowlist: s.posture?.listener_allowlist ?? [],
       docker_port_allowlist: s.posture?.docker_port_allowlist ?? [],
+      windows_listener_allowlist: s.posture?.windows_listener_allowlist ?? [],
     },
   };
 }

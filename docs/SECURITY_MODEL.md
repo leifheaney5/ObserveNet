@@ -54,7 +54,7 @@ readiness and has not been independently reviewed.
 - **Bound to one agent:** the first batch binds the token to that `agent_uid`; a
   different agent presenting the same token gets 403.
 - Expiry (default 90 days, `OBSERVENET_AGENT_TOKEN_TTL_DAYS`) and immediate revocation
-  (Settings → Tokens, `DELETE /api/v1/tokens/{id}`). No caching of token lookups, so
+  (Settings → Agent tokens, `DELETE /api/v1/tokens/{id}`). No caching of token lookups, so
   revocation takes effect on the next request.
 - The bundled collector uses `OBSERVENET_BOOTSTRAP_AGENT_TOKEN` from `.env`. It is
   registered once at startup and has no expiry; if revoked it stays revoked. Rotate it
@@ -121,7 +121,7 @@ no GraphiQL in production; batched loaders so query fan-out is bounded.
 - The Docker socket is never mounted into ObserveNet containers. The optional
   `docker-inventory` profile uses a socket proxy limited to the container list.
 - The collector container: non-root, read-only root filesystem, all capabilities
-  dropped (`NET_RAW` optional for ICMP), host network namespace (required to see the
+  dropped (none added; ICMP uses unprivileged datagram sockets via `net.ipv4.ping_group_range`), host network namespace (required to see the
   host's interfaces and sockets).
 
 ## Input validation

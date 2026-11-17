@@ -907,6 +907,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/topology/peers/{asset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Topology Peers
+         * @description Devices observed on the same subnet(s). Answered by Neo4j when the optional graph
+         *     profile is configured, by PostgreSQL otherwise (``backend`` says which).
+         */
+        get: operations["topology_peers_api_v1_topology_peers__asset_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/traffic/top-devices": {
         parameters: {
             query?: never;
@@ -1995,6 +2016,8 @@ export interface components {
              * @default 90
              */
             verify_timeout_s: number;
+            /** Windows Listener Allowlist */
+            windows_listener_allowlist?: string[];
         };
         /** Presence */
         Presence: {
@@ -4093,6 +4116,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    topology_peers_api_v1_topology_peers__asset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                asset_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -958,8 +958,17 @@ async def top_devices(
             .where(AssetIdentity.kind == "mac", AssetIdentity.value.in_(list(by_mac)))
         )
     ).all()
+    last_ip: dict[int, str] = {}
+    asset_ids = [asset_id for _mac, asset_id, _d, _h in idents]
+    if asset_ids:
+        seen = await db.execute(
+            select(AddressObservation.asset_id, AddressObservation.ip)
+            .where(AddressObservation.asset_id.in_(asset_ids))
+            .order_by(AddressObservation.last_seen)
+        )
+        last_ip = {asset_id: ip for asset_id, ip in seen.all()}
     for mac, asset_id, display, host in idents:
-        by_mac[mac].update(asset_id=asset_id, name=display or host or mac)
+        by_mac[mac].update(asset_id=asset_id, name=display or host or last_ip.get(asset_id) or mac)
     devices = sorted(by_mac.values(), key=lambda d: d["rx_bps"] + d["tx_bps"], reverse=True)[:10]
     sources = {s.id: s.name for s in (await db.execute(select(DataSource))).scalars()}
     for d in devices:
