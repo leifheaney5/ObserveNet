@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f5ef" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content="Your private starting point for research, media and the tools that keep everything running." />
+    <title>Leifslab — Home</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/theme.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to services</a>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="wordmark" href="/" aria-label="Leifslab home">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M7 5v22h19M14 5v15h12M21 5v8h5" stroke="currentColor" stroke-width="3" />
+          </svg>
+          <span>leifslab<span class="wordmark-dot">.</span></span>
+        </a>
+        <div class="topbar-actions">
+          <span class="private-pill" title="Reachable only from your own devices">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="5" y="9" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.6" />
+              <path d="M7 9V6a3 3 0 0 1 6 0v3" stroke="currentColor" stroke-width="1.6" />
+            </svg>
+            Private
+          </span>
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch colour theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8" />
+              <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="greeting" id="greeting">Welcome back</p>
+        <h1 id="page-title">Where to?</h1>
+
+        <div class="search" role="search">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <label class="visually-hidden" for="search-input">Search your services</label>
+          <input id="search-input" type="search" placeholder="Search your services" autocomplete="off" autocapitalize="off" spellcheck="false" aria-controls="results" aria-describedby="result-status" />
+          <kbd class="search-hint" id="search-hint" aria-hidden="true">/</kbd>
+          <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+        <p class="result-status" id="result-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="quick" id="quick" aria-labelledby="quick-title" hidden>
+        <div class="section-head">
+          <h2 id="quick-title">Quick access</h2>
+          <span class="section-note">Pinned first, then recently opened</span>
+        </div>
+        <ul class="quick-list" id="quick-list"></ul>
+      </section>
+
+      <div id="results" class="results" aria-busy="true">
+        <div class="skeleton-grid" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span id="footer-summary">Loading your directory…</span>
+        <span class="footer-keys" aria-hidden="true">
+          <kbd>/</kbd> search <kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> clear
+        </span>
+      </div>
+    </footer>
+
+    <noscript>
+      <p class="noscript">This page needs JavaScript to list your services.</p>
+    </noscript>
+  </body>
+</html>
