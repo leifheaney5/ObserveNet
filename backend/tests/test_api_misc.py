@@ -140,9 +140,9 @@ async def test_settings_validation_and_audit(admin_client: httpx.AsyncClient) ->
 async def test_deployment_info_reports_configuration_without_claiming_reachability(
     admin_client: httpx.AsyncClient, set_config: Any
 ) -> None:
-    set_config(public_url="https://observenet.leafslab.com", alert_webhook_secret="hunter2-hunter2")  # noqa: S106
+    set_config(public_url="https://observenet.leifslab.com", alert_webhook_secret="hunter2-hunter2")  # noqa: S106
     info = (await admin_client.get("/api/v1/settings/deployment")).json()
-    assert info["public_url"] == "https://observenet.leafslab.com" and info["https_configured"] is True
+    assert info["public_url"] == "https://observenet.leifslab.com" and info["https_configured"] is True
     assert info["cookie_secure"] is True
     assert "cannot verify" in info["note"]
     assert "hunter2" not in str(info) and "secret" not in str(info).lower()

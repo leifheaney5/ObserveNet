@@ -14,7 +14,7 @@ no-autoupdate: true
 ingress:
   # The only published hostname. Protect it with a Cloudflare Access application
   # BEFORE creating the DNS route.
-  - hostname: observenet.leafslab.com
+  - hostname: observenet.leifslab.com
     service: http://web:8080
     originRequest:
       connectTimeout: 10s

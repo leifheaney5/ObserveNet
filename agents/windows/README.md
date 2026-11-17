@@ -37,7 +37,7 @@ listener allowlist in Settings.
 - An **HTTPS** URL for the backend. The agent refuses plain HTTP except with
   `-AllowLocalHttp` **and** a `localhost` URL (useful only when the backend runs on the
   same PC). For a PC on the LAN this means the public hostname
-  (`https://observenet.leafslab.com`) must be online, or you must provide a TLS endpoint
+  (`https://observenet.leifslab.com`) must be online, or you must provide a TLS endpoint
   on the LAN yourself.
 - A collector token created for this PC.
 - The PC's clock must be within 120 s of the server's, or batches are rejected (422).
@@ -53,7 +53,7 @@ protected by the collector token). See `docs/DOMAIN_AND_AUTH.md`.
 Prints one batch as JSON after two NIC readings and exits:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\observenet-agent.ps1 -Url https://observenet.leafslab.com -DryRun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\observenet-agent.ps1 -Url https://observenet.leifslab.com -DryRun
 ```
 
 Check that `samples`, `inventory` and `posture` look right and that every section has a
@@ -100,7 +100,7 @@ Optional, for Cloudflare Access service tokens — a second file with the same A
 ## 4. Run it in the foreground once
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\ObserveNet\observenet-agent.ps1 -Url https://observenet.leafslab.com
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\ObserveNet\observenet-agent.ps1 -Url https://observenet.leifslab.com
 ```
 
 Within a few seconds the PC should appear under Settings → Data sources and Devices.
@@ -111,7 +111,7 @@ Stop with Ctrl-C.
 As the user who should run it (no elevation needed for a per-user task):
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ObserveNet\observenet-agent.ps1" -Url https://observenet.leafslab.com'
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ObserveNet\observenet-agent.ps1" -Url https://observenet.leifslab.com'
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName 'ObserveNet Agent' -Action $action -Trigger $trigger -Settings $settings -Description 'ObserveNet read-only agent'

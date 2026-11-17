@@ -37,7 +37,7 @@ cloudflared tunnel create linux-leif
 ```
 
 ```bash
-cloudflared tunnel route dns linux-leif observenet.leafslab.com
+cloudflared tunnel route dns linux-leif observenet.leifslab.com
 ```
 
 Copy `config.example.yml` to `config.yml`, fill in the tunnel UUID, and place the
@@ -46,7 +46,7 @@ them (`*.json` credentials and `config.yml` should stay out of git).
 
 ## Either way
 
-- Create the Cloudflare Access application for `observenet.leafslab.com` **before**
+- Create the Cloudflare Access application for `observenet.leifslab.com` **before**
   publishing the hostname.
 - The origin service is `http://web:8080` on the Compose network — never the API
   container directly, never PostgreSQL/Redis, never the metrics port.

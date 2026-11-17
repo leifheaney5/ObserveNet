@@ -9,7 +9,7 @@
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, trust boundaries, threats, residual risks |
 | [ADRs/](ADRs/README.md) | Architecture decision records |
 | [DEPLOY_LINUX_LEIF.md](DEPLOY_LINUX_LEIF.md) | Bring-up on the home Docker host, agents, backups, updates |
-| [DOMAIN_AND_AUTH.md](DOMAIN_AND_AUTH.md) | `https://observenet.leafslab.com` via tunnel + edge access (not deployed) |
+| [DOMAIN_AND_AUTH.md](DOMAIN_AND_AUTH.md) | `https://observenet.leifslab.com` via tunnel + edge access (not deployed) |
 | [OPERATIONS.md](OPERATIONS.md) | Runbook: health, metrics, queues, retention, tokens |
 | [INTERVIEW_DEMO.md](INTERVIEW_DEMO.md) | Timed 5-minute demo and talking points |
 | [LIMITATIONS.md](LIMITATIONS.md) | What is missing, untested or out of scope |

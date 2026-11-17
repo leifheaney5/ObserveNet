@@ -190,7 +190,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # --- optional: outbound-only tunnel for https://observenet.leafslab.com (no port forward) ---
+  # --- optional: outbound-only tunnel for https://observenet.leifslab.com (no port forward) ---
   cloudflared:
     profiles: [tunnel]
     image: cloudflare/cloudflared:${CLOUDFLARED_VERSION:-2024.11.1}

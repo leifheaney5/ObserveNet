@@ -7,10 +7,13 @@ ObserveNet shows what was actually measured, where it was measured, and how fres
 When something cannot be observed it says **Unknown**, **Unavailable** or **Unsupported**
 instead of drawing a number. It never scans, exploits, or changes a device.
 
-> **Status: built and verified locally, not deployed.** The stack runs with
-> `docker compose` and was exercised end to end in a build sandbox (results below).
-> It has **not** been run on `linux-leif`, and `https://observenet.leafslab.com` is a
-> documented procedure, not a live endpoint. See [Known limitations](#known-limitations).
+> **Status: verified in a build sandbox; brought up on `linux-leif` by its owner.** The
+> validation results below are from the build sandbox. On 2026-11-17 the owner started the
+> stack on `linux-leif` with `docker compose` (all services reported healthy) and reaches
+> it over Tailscale. `https://observenet.leifslab.com` is being routed through the host's
+> existing Caddy reverse proxy on the tailnet; it is **not** on the public internet and
+> the Cloudflare path is not configured. None of the `linux-leif` steps were executed or
+> verified by the build itself. See [Known limitations](#known-limitations).
 
 ObserveNet is an independent project. Its Find/Fix/Verify emphasis is loosely inspired by
 ideas popularised by autonomous-pentesting products, but it is not affiliated with
@@ -156,12 +159,18 @@ handling) are in [`docs/TELEMETRY_SOURCES.md`](docs/TELEMETRY_SOURCES.md).
 
 More: [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md), [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
-## Public hostname: `observenet.leafslab.com`
+## Public hostname: `observenet.leifslab.com`
 
-**Not configured.** Nothing was created at any DNS provider or at Cloudflare. The intended
-path is an outbound-only Cloudflare Tunnel plus a Cloudflare Access policy in front of the
-app's own login. Exact steps, prerequisites (the `leafslab.com` zone must be under your
-control on Cloudflare) and alternatives are in
+**Tailnet-only, via the host's existing Caddy.** `*.leifslab.com` names on `linux-leif`
+resolve to the server's Tailscale address and are served by a Caddy reverse proxy that
+already fronts other services there; ObserveNet is one more `reverse_proxy 127.0.0.1:8080`
+entry in that block, with `OBSERVENET_PUBLIC_URL` and `OBSERVENET_ALLOWED_HOSTS` set to
+match. Only devices on the tailnet can reach it.
+
+**Public internet access is not configured.** Nothing was created at Cloudflare. If that is
+ever wanted, the intended path is an outbound-only Cloudflare Tunnel plus a Cloudflare
+Access policy in front of the app's own login. Exact steps, prerequisites (the
+`leifslab.com` zone must be under your control on Cloudflare) and alternatives are in
 [`docs/DOMAIN_AND_AUTH.md`](docs/DOMAIN_AND_AUTH.md); host bring-up is in
 [`docs/DEPLOY_LINUX_LEIF.md`](docs/DEPLOY_LINUX_LEIF.md).
 

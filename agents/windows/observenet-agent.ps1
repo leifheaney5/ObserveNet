@@ -21,7 +21,7 @@
     build environment. Run it with -DryRun first and read the output.
 
 .PARAMETER Url
-    Base URL of the ObserveNet backend, e.g. https://observenet.leafslab.com
+    Base URL of the ObserveNet backend, e.g. https://observenet.leifslab.com
     Must be https:// unless -AllowLocalHttp is given AND the host is localhost.
 
 .PARAMETER TokenFile
@@ -47,10 +47,10 @@
     exit without contacting the backend. No token required.
 
 .EXAMPLE
-    .\observenet-agent.ps1 -Url https://observenet.leafslab.com -DryRun
+    .\observenet-agent.ps1 -Url https://observenet.leifslab.com -DryRun
 
 .EXAMPLE
-    .\observenet-agent.ps1 -Url https://observenet.leafslab.com
+    .\observenet-agent.ps1 -Url https://observenet.leifslab.com
 #>
 [CmdletBinding()]
 param(

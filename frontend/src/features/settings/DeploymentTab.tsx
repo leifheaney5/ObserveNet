@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { api, type AuditRow } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 
-const TARGET_HOST = "observenet.leafslab.com";
+const TARGET_HOST = "observenet.leifslab.com";
 
 interface DeploymentInfo {
   public_url: string;
@@ -109,7 +109,7 @@ export function DeploymentTab() {
         <CardBody className="space-y-3">
           <ol className="list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-muted">
             <li>
-              The <span className="font-mono">leafslab.com</span> DNS zone must be under your control at the tunnel provider. ObserveNet does
+              The <span className="font-mono">leifslab.com</span> DNS zone must be under your control at the tunnel provider. ObserveNet does
               not assume it is.
             </li>
             <li>

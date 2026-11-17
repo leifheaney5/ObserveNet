@@ -55,8 +55,8 @@ Settings you may want to review in `.env`:
 |---|---|---|
 | `OBSERVENET_BIND` | `127.0.0.1` | Address the web port is published on. Leave on loopback unless you add your own TLS front end. |
 | `OBSERVENET_PORT` | `8080` | Local port |
-| `OBSERVENET_PUBLIC_URL` | `http://localhost:8080` | Set to `https://observenet.leafslab.com` when the tunnel is used (enables `Secure` cookies and HSTS) |
-| `OBSERVENET_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Add `observenet.leafslab.com` for remote access |
+| `OBSERVENET_PUBLIC_URL` | `http://localhost:8080` | Set to `https://observenet.leifslab.com` when the tunnel is used (enables `Secure` cookies and HSTS) |
+| `OBSERVENET_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Add `observenet.leifslab.com` for remote access |
 | `COMPOSE_PROFILES` | `collector` | Starts the bundled Linux collector |
 | `OBSERVENET_DEMO_MODE` | `false` | Synthetic data only; never combine with the collector |
 

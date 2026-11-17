@@ -92,14 +92,14 @@ async def test_security_headers_on_every_response(client: httpx.AsyncClient) -> 
 async def test_untrusted_host_header_is_rejected(set_config: Any) -> None:
     from observenet.api.app import create_app
 
-    set_config(env="development", allowed_hosts="observenet.leafslab.com")
+    set_config(env="development", allowed_hosts="observenet.leifslab.com")
     app = create_app()
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://evil.example"
     ) as bad:
         assert (await bad.get("/api/v1/health")).status_code == 400
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://observenet.leafslab.com"
+        transport=httpx.ASGITransport(app=app), base_url="http://observenet.leifslab.com"
     ) as good:
         assert (await good.get("/api/v1/health")).status_code == 200
 
@@ -177,7 +177,7 @@ async def test_login_success_sets_hardened_cookies_and_me_works(
 async def test_session_cookie_is_secure_when_public_url_is_https(
     admin_client: httpx.AsyncClient, app: Any, set_config: Any
 ) -> None:
-    set_config(public_url="https://observenet.leafslab.com")
+    set_config(public_url="https://observenet.leifslab.com")
     assert get_config().cookie_secure_effective is True
     async with _client(app) as c:
         resp = await c.post("/api/v1/auth/login", json={"username": "admin", "password": ADMIN_PASSWORD})

@@ -1,10 +1,15 @@
-# Remote access: `https://observenet.leafslab.com`
+# Remote access: `https://observenet.leifslab.com`
 
-> ## STATUS: NOT DEPLOYED
+> ## STATUS: CLOUDFLARE PATH NOT DEPLOYED — TAILNET PATH IN USE
 >
-> Nothing in this document has been executed. The build had no access to the
-> `leafslab.com` DNS zone, a Cloudflare account, the registrar, or `linux-leif`.
-> `observenet.leafslab.com` is **not** configured, **not** live, and has **not** been
+> What is actually in place on `linux-leif` (set up by the owner, not verified by the
+> build): `observenet.leifslab.com` is served by the host's existing Caddy reverse proxy,
+> reachable only over Tailscale. See "Tailnet-only access through an existing Caddy" at
+> the end of this document.
+>
+> Nothing in the Cloudflare procedure below has been executed. The build had no access to the
+> `leifslab.com` DNS zone, a Cloudflare account, the registrar, or `linux-leif`.
+> `observenet.leifslab.com` is **not** configured, **not** live, and has **not** been
 > verified. What exists is: an application that is safe to put behind an HTTPS edge
 > (trusted hosts, `Secure` cookies, CSRF, no unauthenticated data endpoints), a Compose
 > profile for `cloudflared`, and the procedure below.
@@ -35,10 +40,10 @@ traffic. See "Alternatives" if that is not acceptable.
 ## Prerequisite: the DNS zone
 
 Cloudflare Tunnel public hostnames only work for zones that are **active in the same
-Cloudflare account**. Check where `leafslab.com` is hosted:
+Cloudflare account**. Check where `leifslab.com` is hosted:
 
 ```bash
-dig +short NS leafslab.com
+dig +short NS leifslab.com
 ```
 
 - Nameservers ending in `.ns.cloudflare.com` → continue below.
@@ -69,7 +74,7 @@ Zero Trust → Access → Applications → Add an application → **Self-hosted*
 | Field | Value |
 |---|---|
 | Application name | ObserveNet |
-| Application domain | `observenet.leafslab.com` |
+| Application domain | `observenet.leifslab.com` |
 | Session duration | 24 hours (or shorter) |
 | Policy name | Owner only |
 | Action | Allow |
@@ -80,8 +85,8 @@ identity provider if it supports it.
 
 Only if a remote agent (the Windows PC) must post through the hostname: add a second
 self-hosted application limited to the two agent paths —
-`observenet.leafslab.com/api/v1/ingest/agent` and
-`observenet.leafslab.com/api/v1/agent/config` — with a policy of action
+`observenet.leifslab.com/api/v1/ingest/agent` and
+`observenet.leifslab.com/api/v1/agent/config` — with a policy of action
 **Service Auth** including a service token (Access → Service Auth → Create service
 token). Give the token's client id/secret to the agent (`-AccessHeadersFile`). Those
 endpoints still require the ObserveNet collector token. If no remote agent is used,
@@ -99,11 +104,11 @@ In the tunnel's **Public Hostname** tab add:
 | Field | Value |
 |---|---|
 | Subdomain | `observenet` |
-| Domain | `leafslab.com` |
+| Domain | `leifslab.com` |
 | Type | HTTP |
 | URL | `web:8080` |
 
-Cloudflare creates the proxied CNAME record for `observenet.leafslab.com`
+Cloudflare creates the proxied CNAME record for `observenet.leifslab.com`
 automatically.
 
 ### 4. Configure the stack on `linux-leif`
@@ -111,8 +116,8 @@ automatically.
 Edit `.env`:
 
 ```
-OBSERVENET_PUBLIC_URL=https://observenet.leafslab.com
-OBSERVENET_ALLOWED_HOSTS=observenet.leafslab.com,localhost,127.0.0.1
+OBSERVENET_PUBLIC_URL=https://observenet.leifslab.com
+OBSERVENET_ALLOWED_HOSTS=observenet.leifslab.com,localhost,127.0.0.1
 CLOUDFLARE_TUNNEL_TOKEN=<token from step 3>
 COMPOSE_PROFILES=collector,tunnel
 ```
@@ -135,7 +140,7 @@ loopback).
 
 ### 5. Zone settings
 
-In the `leafslab.com` zone: SSL/TLS → Edge Certificates → **Always Use HTTPS: On**,
+In the `leifslab.com` zone: SSL/TLS → Edge Certificates → **Always Use HTTPS: On**,
 minimum TLS 1.2. Network → **WebSockets: On** (default).
 
 ## Verification
@@ -145,39 +150,39 @@ Run these from a machine **outside** the home network unless stated.
 DNS resolves to Cloudflare:
 
 ```bash
-dig +short observenet.leafslab.com
+dig +short observenet.leifslab.com
 ```
 
 TLS certificate and protocol:
 
 ```bash
-openssl s_client -connect observenet.leafslab.com:443 -servername observenet.leafslab.com </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+openssl s_client -connect observenet.leifslab.com:443 -servername observenet.leifslab.com </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
 ```
 
 HTTP is redirected to HTTPS:
 
 ```bash
-curl -sI http://observenet.leafslab.com/ | head -n 3
+curl -sI http://observenet.leifslab.com/ | head -n 3
 ```
 
-Expected: `301` with `Location: https://observenet.leafslab.com/`.
+Expected: `301` with `Location: https://observenet.leifslab.com/`.
 
 The edge policy is in front (no app content without Access):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://observenet.leafslab.com/
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://observenet.leifslab.com/
 ```
 
 Expected: `302` to `https://<team>.cloudflareaccess.com/cdn-cgi/access/login/…`.
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://observenet.leafslab.com/api/v1/devices
+curl -s -o /dev/null -w '%{http_code}\n' https://observenet.leifslab.com/api/v1/devices
 ```
 
 Expected: `302` (Access), never `200`.
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://observenet.leafslab.com/graphql
+curl -s -o /dev/null -w '%{http_code}\n' https://observenet.leifslab.com/graphql
 ```
 
 Expected: `302` (Access).
@@ -205,7 +210,7 @@ ss -ltn | grep ':8080'
 
 Expected: `127.0.0.1:8080` only.
 
-In a browser: open `https://observenet.leafslab.com`, pass the Access login, then the
+In a browser: open `https://observenet.leifslab.com`, pass the Access login, then the
 ObserveNet login. The header indicator should read **Live** (WebSocket through the
 tunnel). In DevTools → Network → WS, `/api/v1/stream` should show status 101 and one
 frame per second.
@@ -245,10 +250,10 @@ Delete the public hostname (and optionally the tunnel) in the Zero Trust dashboa
 
 | Option | How | Hostname | Edge auth | Notes |
 |---|---|---|---|---|
-| Move the zone to Cloudflare | Change nameservers at the registrar | `observenet.leafslab.com` | Cloudflare Access | Then follow this document |
-| Tailscale Serve | `tailscale serve --bg 8080` on `linux-leif` | `linux-leif.<tailnet>.ts.net` (tailnet-only) | Tailnet membership + device auth | Most private: not on the public internet at all. Set `OBSERVENET_PUBLIC_URL`/`ALLOWED_HOSTS` to the ts.net name. Does not give the `leafslab.com` hostname. |
+| Move the zone to Cloudflare | Change nameservers at the registrar | `observenet.leifslab.com` | Cloudflare Access | Then follow this document |
+| Tailscale Serve | `tailscale serve --bg 8080` on `linux-leif` | `linux-leif.<tailnet>.ts.net` (tailnet-only) | Tailnet membership + device auth | Most private: not on the public internet at all. Set `OBSERVENET_PUBLIC_URL`/`ALLOWED_HOSTS` to the ts.net name. Does not give the `leifslab.com` hostname. |
 | Tailscale Funnel | `tailscale funnel --bg 8080` | `linux-leif.<tailnet>.ts.net` (public) | **None** — only the ObserveNet login | Public exposure with a single auth layer; not recommended for this data. Custom domains are not supported. |
-| VPS reverse proxy + WireGuard | Small VPS with Caddy (Let's Encrypt for `observenet.leafslab.com`, A record → VPS) proxying over a WireGuard tunnel that `linux-leif` initiates outbound | `observenet.leafslab.com` | Add one yourself (e.g. oauth2-proxy or mTLS in Caddy) | You operate and patch the VPS; TLS terminates on infrastructure you control. |
+| VPS reverse proxy + WireGuard | Small VPS with Caddy (Let's Encrypt for `observenet.leifslab.com`, A record → VPS) proxying over a WireGuard tunnel that `linux-leif` initiates outbound | `observenet.leifslab.com` | Add one yourself (e.g. oauth2-proxy or mTLS in Caddy) | You operate and patch the VPS; TLS terminates on infrastructure you control. |
 | Router port forward to a local reverse proxy | — | — | — | Not recommended: opens an inbound port to the home network. |
 
 For every alternative: keep `OBSERVENET_BIND=127.0.0.1`, set
@@ -259,3 +264,46 @@ For every alternative: keep `OBSERVENET_BIND=127.0.0.1`, set
 
 - `infra/cloudflare/README.md` — token-based vs. locally managed tunnels.
 - `infra/cloudflare/config.example.yml` — ingress rules for a locally managed tunnel.
+
+## Tailnet-only access through an existing Caddy
+
+This is the path in use on `linux-leif`. It needs no Cloudflare account and exposes
+nothing to the public internet: the hostname resolves to the server's Tailscale address,
+so only devices signed in to the tailnet can connect, and Tailscale encrypts the path.
+
+Prerequisites: a Caddy instance on the host (host networking) that already serves a
+`*.leifslab.com` site block with a valid certificate, and Tailscale on the server.
+
+1. **DNS.** At the registrar, add an `A` record `observenet` → the server's Tailscale
+   address (the same value the other `*.leifslab.com` service records use). Without it
+   the name falls through to the registrar's parking address.
+2. **Caddy.** Inside the `*.leifslab.com { … }` block add:
+
+   ```
+   @observenet host observenet.leifslab.com
+   handle @observenet {
+           reverse_proxy 127.0.0.1:8080
+   }
+   ```
+
+   Validate and reload (`caddy validate` / `caddy reload`). If the Caddyfile is
+   bind-mounted as a single file, edit it in place rather than replacing it, or the
+   container keeps reading the old file.
+3. **ObserveNet.** In `.env`:
+
+   ```
+   OBSERVENET_PUBLIC_URL=https://observenet.leifslab.com
+   OBSERVENET_ALLOWED_HOSTS=observenet.leifslab.com,localhost,127.0.0.1
+   ```
+
+   then `docker compose up -d`. With an `https://` public URL the session cookies are
+   `Secure`, so sign-in over a plain `http://` address other than `localhost` stops
+   working; use the hostname.
+
+Caddy forwards the original `Host` header and upgrades WebSockets on its own, which is
+what the app's trusted-host and WebSocket Origin checks need. The web container stays
+bound to loopback; nothing else has to be published.
+
+Trade-offs: every tailnet device that can reach the server can reach the login page (the
+app's own authentication is the only gate), and collectors on machines outside the tailnet
+cannot report in.

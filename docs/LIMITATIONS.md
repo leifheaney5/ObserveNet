@@ -21,7 +21,7 @@ code exists but was never run where it matters.
    OPNsense/pfSense, no flow collector. Only the provider interface, a null provider and
    the client-list import exist. Consequently Wi-Fi clients/signal, DHCP leases as a
    live source, and UPnP/port-forward checks (`RTR-UPNP-001`) are *Unsupported*.
-5. **The public hostname is not deployed.** `https://observenet.leafslab.com` is a
+5. **The public hostname is not deployed.** `https://observenet.leifslab.com` is a
    documented procedure (`DOMAIN_AND_AUTH.md`), not a running endpoint. No DNS, tunnel
    or Access policy was created or verified.
 6. **Not run on `linux-leif`.** Everything was built and exercised in a build sandbox,

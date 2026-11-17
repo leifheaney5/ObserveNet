@@ -1,7 +1,7 @@
 # Threat model
 
 Scope: the ObserveNet stack on one home Linux host (`linux-leif`), its agents, and the
-documented remote-access path (`https://observenet.leafslab.com` through an outbound
+documented remote-access path (`https://observenet.leifslab.com` through an outbound
 tunnel with an edge access policy). The remote path is designed and documented, **not
 deployed or verified**.
 
@@ -50,7 +50,7 @@ deployed or verified**.
 | 16 | E | Admin (or attacker with admin) turns agents into scanners | Probe targets validated server-side and again on the agent: private, approved CIDR, ICMP or 4 TCP ports only, min intervals, ≤ 20 targets; discovery capped (≤ 1024 addresses, ≤ 10/s, attached subnets only); the agent executes no commands | Within those limits an admin can still learn which approved-range hosts answer ping or accept TCP on 53/80/443/853. |
 | 17 | E | Container escape / over-privileged collector | Non-root, read-only rootfs, capabilities dropped, no Docker socket | The collector shares the host network namespace (it must, to see host interfaces). `NET_RAW`, if granted, allows crafting raw ICMP. |
 | 18 | E | Viewer performs admin actions | Role checks on every mutating route; GraphQL is read-only | Viewer can read all inventory and findings (intended). |
-| 19 | S/T | DNS or zone takeover of `observenet.leafslab.com` | Requires control of the Cloudflare account/zone | Out of the application's control. Protect the registrar and Cloudflare accounts with MFA. |
+| 19 | S/T | DNS or zone takeover of `observenet.leifslab.com` | Requires control of the Cloudflare account/zone | Out of the application's control. Protect the registrar and Cloudflare accounts with MFA. |
 | 20 | T | Supply chain (Python/npm/base images) | Lockfiles (`uv.lock`, `package-lock.json`), pinned image tags, CI audit jobs | Audits are advisory in CI; images are pinned by tag, not digest. |
 
 ## Assumptions
