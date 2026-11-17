@@ -167,6 +167,10 @@ def update_start_page(removed_hosts: set[str], stamp: str) -> None:
         print("Start page: no matching links; nothing to change")
         return
     backup = HOME / f"services.json.bak-{stamp}"
+    n = 1
+    while backup.exists():
+        n += 1
+        backup = HOME / f"services.json.bak-{stamp}-{n}"
     shutil.copyfile(real, backup)
     tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
     tmp.write(json.dumps(kept, indent=2, ensure_ascii=False) + "\n")
@@ -213,7 +217,13 @@ def main() -> int:
         print("Nothing to change in the Caddyfile.")
     else:
         stamp = time.strftime("%Y%m%d-%H%M%S")
-        backup = CADDYFILE.with_name(f"Caddyfile.bak-{stamp}")
+        # The domain is part of the name and an existing file is never overwritten: two runs in
+        # the same second (one command applying both domains) must not clobber each other's backup.
+        backup = CADDYFILE.with_name(f"Caddyfile.bak-{stamp}-{domain}")
+        n = 1
+        while backup.exists():
+            n += 1
+            backup = CADDYFILE.with_name(f"Caddyfile.bak-{stamp}-{domain}-{n}")
         shutil.copy2(CADDYFILE, backup)
         CADDYFILE.write_text("\n".join(new_lines))  # in place: the file is bind-mounted into the container
         check = subprocess.run(["docker", "exec", "caddy", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"], capture_output=True, text=True)
