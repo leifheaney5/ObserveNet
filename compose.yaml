@@ -1,0 +1,290 @@
+# ObserveNet — self-hosted stack.
+#
+#   make init                      # create .env with random secrets (no default credentials)
+#   docker compose up --build -d   # start everything; UI on http://127.0.0.1:8080
+#
+# Only `web` is published, on loopback by default. PostgreSQL, Redis, the API and the
+# metrics listeners are reachable only on the internal Docker network.
+name: observenet
+
+x-backend: &backend
+  build:
+    context: ./backend
+  image: observenet/backend:${OBSERVENET_VERSION:-local}
+  restart: unless-stopped
+  environment: &backend-env
+    OBSERVENET_ENV: production
+    OBSERVENET_DEMO_MODE: ${OBSERVENET_DEMO_MODE:-false}
+    OBSERVENET_DATABASE_URL: postgresql+psycopg://observenet:${POSTGRES_PASSWORD:?run `make init` to create .env}@postgres:5432/observenet
+    OBSERVENET_REDIS_URL: redis://redis:6379/0
+    OBSERVENET_SECRET_KEY: ${OBSERVENET_SECRET_KEY:?run `make init` to create .env}
+    OBSERVENET_ADMIN_USERNAME: ${OBSERVENET_ADMIN_USERNAME:-admin}
+    OBSERVENET_ADMIN_PASSWORD: ${OBSERVENET_ADMIN_PASSWORD:-}
+    OBSERVENET_BOOTSTRAP_AGENT_TOKEN: ${OBSERVENET_BOOTSTRAP_AGENT_TOKEN:-}
+    OBSERVENET_PUBLIC_URL: ${OBSERVENET_PUBLIC_URL:-http://localhost:8080}
+    OBSERVENET_ALLOWED_HOSTS: ${OBSERVENET_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    OBSERVENET_METRICS_PORT: "9464"
+    OBSERVENET_OTEL_EXPORTER_OTLP_ENDPOINT: ${OBSERVENET_OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    OBSERVENET_ALERT_WEBHOOK_URL: ${OBSERVENET_ALERT_WEBHOOK_URL:-}
+    OBSERVENET_ALERT_WEBHOOK_SECRET: ${OBSERVENET_ALERT_WEBHOOK_SECRET:-}
+    OBSERVENET_OUI_FILE: ${OBSERVENET_OUI_FILE:-}
+    OBSERVENET_NEO4J_URI: ${OBSERVENET_NEO4J_URI:-}
+    OBSERVENET_NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
+    OBSERVENET_LOG_LEVEL: ${OBSERVENET_LOG_LEVEL:-INFO}
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: observenet
+      POSTGRES_USER: observenet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run `make init` to create .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U observenet -d observenet"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF keeps queued ingest batches across restarts; no port is published.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    cap_drop:
+      - ALL
+    cap_add: [SETGID, SETUID, CHOWN]
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    networks: [internal]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  worker:
+    <<: *backend
+    command: ["dramatiq", "observenet.workers.tasks", "--processes", "1", "--threads", "4", "--queues", "ingest", "maintenance"]
+    # `egress` is only needed for the optional alert webhook / OTLP export.
+    networks: [internal, egress]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "observenet.workers.healthcheck", "worker"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  scheduler:
+    <<: *backend
+    command: ["python", "-m", "observenet.workers.scheduler"]
+    networks: [internal]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "observenet.workers.healthcheck", "scheduler"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  web:
+    build:
+      context: ./frontend
+    image: observenet/web:${OBSERVENET_VERSION:-local}
+    restart: unless-stopped
+    # Loopback by default. Set OBSERVENET_BIND to a trusted LAN address only if you mean to.
+    ports:
+      - "${OBSERVENET_BIND:-127.0.0.1}:${OBSERVENET_PORT:-8080}:8080"
+    networks: [internal, egress]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  # Read-only Linux collector for this host. Host networking is required to see the host's
+  # interfaces, routes, neighbour cache and listening sockets. It has no extra capabilities,
+  # no Docker socket and a read-only root filesystem.
+  collector:
+    profiles: [collector]
+    build:
+      context: ./agents/linux
+    image: observenet/collector:${OBSERVENET_VERSION:-local}
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      OBSERVENET_URL: http://127.0.0.1:${OBSERVENET_PORT:-8080}
+      OBSERVENET_AGENT_TOKEN: ${OBSERVENET_BOOTSTRAP_AGENT_TOKEN:?run `make init` to create .env}
+      OBSERVENET_AGENT_HOSTNAME: ${OBSERVENET_AGENT_HOSTNAME:-}
+      OBSERVENET_DOCKER_API_URL: ${OBSERVENET_DOCKER_API_URL:-}
+    volumes:
+      - collector-state:/var/lib/observenet-agent
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  # --- optional: outbound-only tunnel for https://observenet.leafslab.com (no port forward) ---
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:${CLOUDFLARED_VERSION:-2024.11.1}
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks: [egress]
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  # --- optional: read-only Docker inventory for the collector (containers list only) ---
+  # The raw Docker socket is mounted ONLY into this proxy, which exposes GET /containers/*
+  # and nothing else, on loopback. Then set OBSERVENET_DOCKER_API_URL=http://127.0.0.1:2375.
+  docker-socket-proxy:
+    profiles: [docker-inventory]
+    image: tecnativa/docker-socket-proxy:${DOCKER_SOCKET_PROXY_VERSION:-0.3.0}
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      POST: 0
+      IMAGES: 0
+      NETWORKS: 0
+      VOLUMES: 0
+      EXEC: 0
+      INFO: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:2375:2375"
+    networks: [socketproxy]
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  # --- optional: Neo4j projection of the observed topology (PostgreSQL stays the source of truth) ---
+  # Enable with COMPOSE_PROFILES=...,graph and OBSERVENET_NEO4J_URI=bolt://neo4j:7687 in .env.
+  neo4j:
+    profiles: [graph]
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-}
+      NEO4J_server_memory_heap_max__size: 512m
+    volumes:
+      - neo4jdata:/data
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+
+  # --- optional: ObserveNet's own metrics and traces (loopback-only UIs) ---
+  # Enable with COMPOSE_PROFILES=...,observability and
+  # OBSERVENET_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 in .env.
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks: [internal, egress]
+    security_opt:
+      - no-new-privileges:true
+
+  jaeger:
+    profiles: [observability]
+    image: jaegertracing/all-in-one:1.62.0
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks: [internal, egress]
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  internal:
+    internal: true
+  egress: {}
+  socketproxy: {}
+
+volumes:
+  pgdata:
+  redisdata:
+  collector-state:
+  neo4jdata:
+  promdata:

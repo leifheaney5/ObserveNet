@@ -41,7 +41,9 @@ WAN_GUIDANCE = (
 )
 
 
-def freshness_state(last: datetime | None, now: datetime, fresh: FreshnessSettings, expected_interval_s: float = 1.0) -> str:
+def freshness_state(
+    last: datetime | None, now: datetime, fresh: FreshnessSettings, expected_interval_s: float = 1.0
+) -> str:
     """live | stale | disconnected | never — scaled so slow sources are not flagged stale."""
     if last is None:
         return "never"
@@ -53,15 +55,25 @@ def freshness_state(last: datetime | None, now: datetime, fresh: FreshnessSettin
     return "disconnected"
 
 
-def presence(asset: Asset, now: datetime, fresh: FreshnessSettings, agent_last_seen: datetime | None = None) -> dict[str, str]:
+def presence(
+    asset: Asset, now: datetime, fresh: FreshnessSettings, agent_last_seen: datetime | None = None
+) -> dict[str, str]:
     """Source-dependent presence. Deliberately never says 'offline': not being seen by a
     passive source does not prove a device is disconnected."""
     if asset.managed:
         state = freshness_state(agent_last_seen, now, fresh)
         if state == "live":
-            return {"state": "reporting", "label": "Agent reporting", "basis": "Its agent sent data in the last few seconds."}
+            return {
+                "state": "reporting",
+                "label": "Agent reporting",
+                "basis": "Its agent sent data in the last few seconds.",
+            }
         if state == "stale":
-            return {"state": "reporting_stale", "label": "Agent delayed", "basis": "Its agent's last report is late."}
+            return {
+                "state": "reporting_stale",
+                "label": "Agent delayed",
+                "basis": "Its agent's last report is late.",
+            }
         return {"state": "agent_silent", "label": "Agent silent",
                 "basis": "Its agent stopped reporting. The host may be off, asleep, disconnected, or the agent stopped."}  # fmt: skip
     if asset.last_seen is None:
@@ -98,13 +110,13 @@ class NetCapability(BaseModel):
 
 async def current_values() -> dict[str, dict[str, Any]]:
     try:
-        raw = await get_redis().hgetall(CURRENT_HASH)  # type: ignore[misc]
+        raw = await get_redis().hgetall(CURRENT_HASH)
     except Exception:  # noqa: BLE001 - Redis down => no live values, surfaced as 'unavailable'
         return {}
-    out = {}
+    out: dict[str, dict[str, Any]] = {}
     for k, v in raw.items():
         try:
-            out[k] = json.loads(v)
+            out[str(k)] = json.loads(v)
         except ValueError:
             continue
     return out
@@ -116,12 +128,16 @@ async def network_capabilities(session: AsyncSession, now: datetime) -> list[Net
     recent = now - timedelta(minutes=10)
     series = (
         await session.execute(
-            select(MetricSeries.metric, MetricSeries.source_id).where(MetricSeries.last_ts > recent).distinct()
+            select(MetricSeries.metric, MetricSeries.source_id)
+            .where(MetricSeries.last_ts > recent)
+            .distinct()
         )
     ).all()
 
     def having(prefix: str) -> list[str]:
-        return sorted({by_id[sid].name for metric, sid in series if metric.startswith(prefix) and sid in by_id})
+        return sorted(
+            {by_id[sid].name for metric, sid in series if metric.startswith(prefix) and sid in by_id}
+        )
 
     caps = {
         (c.source_id, c.name): c
@@ -166,7 +182,7 @@ async def network_capabilities(session: AsyncSession, now: datetime) -> list[Net
                 + "). Devices that never talk to an agent host are not seen; this is not a complete inventory.")
         if inv_sources else "No inventory source yet. Start an agent or import your router's client list.",
         sources=inv_sources,
-        guidance="For authoritative inventory, import the router's DHCP/client list (Settings → Data sources) "
+        guidance="For authoritative inventory, import the router's DHCP/client list (Devices → Import client list) "
                  "or connect a gateway provider that reports leases.",
     ))  # fmt: skip
     probe = having("probe.")
@@ -199,7 +215,7 @@ async def network_capabilities(session: AsyncSession, now: datetime) -> list[Net
     out.append(NetCapability(
         key="capacity_test", title="Internet capacity test (opt-in)", status="supported" if speed else "disabled",
         detail="Separate from utilization: an occasional, opt-in download test." if speed
-        else "Off by default. Enable in Settings → Collection if you want periodic capacity tests.", sources=speed,
+        else "Off by default. Enable in Settings → Network scope if you want periodic capacity tests.", sources=speed,
     ))  # fmt: skip
     return out
 
@@ -208,8 +224,12 @@ async def primary_selection(session: AsyncSession) -> dict[str, Any]:
     """Which live series the Overview should chart."""
     source = (
         await session.execute(
-            select(DataSource).where(DataSource.kind.in_(("linux_agent", "demo", "windows_agent")), DataSource.enabled.is_(True))
-            .order_by(DataSource.kind != "linux_agent", DataSource.id).limit(1)  # fmt: skip
+            select(DataSource)
+            .where(
+                DataSource.kind.in_(("linux_agent", "demo", "windows_agent")), DataSource.enabled.is_(True)
+            )
+            .order_by(DataSource.kind != "linux_agent", DataSource.id)
+            .limit(1)  # fmt: skip
         )
     ).scalar_one_or_none()
     out: dict[str, Any] = {"source_id": None, "source_name": None, "interface": None, "gateway_target_id": None,
@@ -217,26 +237,42 @@ async def primary_selection(session: AsyncSession) -> dict[str, Any]:
     if source is not None:
         out["source_id"], out["source_name"] = source.id, source.name
         if source.asset_id:
-            ifaces = list((await session.execute(select(Interface).where(Interface.asset_id == source.asset_id))).scalars())
+            ifaces = list(
+                (
+                    await session.execute(select(Interface).where(Interface.asset_id == source.asset_id))
+                ).scalars()
+            )
             chosen = next((i for i in ifaces if i.is_default_route), None) or next(
-                (i for i in ifaces if i.is_up and not i.name.startswith(("lo", "docker", "br-", "veth"))), None
+                (i for i in ifaces if i.is_up and not i.name.startswith(("lo", "docker", "br-", "veth"))),
+                None,
             )
             out["interface"] = chosen.name if chosen else None
         if out["interface"] is None:
             out["interface"] = (
                 await session.execute(
-                    select(MetricSeries.label).where(MetricSeries.source_id == source.id, MetricSeries.metric == "net.rx_bps",
-                                                     MetricSeries.label != "lo").order_by(MetricSeries.id).limit(1)  # fmt: skip
+                    select(MetricSeries.label)
+                    .where(
+                        MetricSeries.source_id == source.id,
+                        MetricSeries.metric == "net.rx_bps",
+                        MetricSeries.label != "lo",
+                    )
+                    .order_by(MetricSeries.id)
+                    .limit(1)  # fmt: skip
                 )
             ).scalar_one_or_none()
     gw = (
         await session.execute(
-            select(ProbeTarget.id).where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True)).order_by(ProbeTarget.id).limit(1)
+            select(ProbeTarget.id)
+            .where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True))
+            .order_by(ProbeTarget.id)
+            .limit(1)
         )
     ).scalar_one_or_none()
     out["gateway_target_id"] = gw
     wan = (
-        await session.execute(select(MetricSeries).where(MetricSeries.metric == "wan.rx_bps").order_by(MetricSeries.id).limit(1))
+        await session.execute(
+            select(MetricSeries).where(MetricSeries.metric == "wan.rx_bps").order_by(MetricSeries.id).limit(1)
+        )
     ).scalar_one_or_none()
     if wan is not None:
         out["wan_source_id"], out["wan_label"] = wan.source_id, wan.label
@@ -259,7 +295,9 @@ def _live_kpi(key: str, label: str, cur: dict[str, Any] | None, *, now: datetime
                detail={"synthetic": cur.get("q") == "synthetic"})  # fmt: skip
 
 
-async def build_overview(session: AsyncSession, *, now: datetime, settings: RuntimeSettings) -> dict[str, Any]:
+async def build_overview(
+    session: AsyncSession, *, now: datetime, settings: RuntimeSettings
+) -> dict[str, Any]:
     fresh = settings.freshness
     cur = await current_values()
     primary = await primary_selection(session)
@@ -268,7 +306,11 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
 
     # Devices
     assets = list((await session.execute(select(Asset).where(Asset.merged_into_id.is_(None)))).scalars())
-    agent_seen = {s.asset_id: s.last_seen_at for s in (await session.execute(select(DataSource))).scalars() if s.asset_id}
+    agent_seen = {
+        s.asset_id: s.last_seen_at
+        for s in (await session.execute(select(DataSource))).scalars()
+        if s.asset_id
+    }
     counts: dict[str, int] = {}
     for a in assets:
         st = presence(a, now, fresh, agent_seen.get(a.id))["state"]
@@ -284,11 +326,21 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
     ))  # fmt: skip
 
     # WAN (only from a gateway source) — never substituted with host NIC numbers.
-    for key, label, metric in (("wan_download", "WAN download", "wan.rx_bps"), ("wan_upload", "WAN upload", "wan.tx_bps")):
-        c = cur.get(f"{primary['wan_source_id']}|{metric}|{primary['wan_label']}") if primary["wan_source_id"] else None
+    for key, label, metric in (
+        ("wan_download", "WAN download", "wan.rx_bps"),
+        ("wan_upload", "WAN upload", "wan.tx_bps"),
+    ):
+        c = (
+            cur.get(f"{primary['wan_source_id']}|{metric}|{primary['wan_label']}")
+            if primary["wan_source_id"]
+            else None
+        )
         kpis.append(_live_kpi(key, label, c, now=now, fresh=fresh, source="gateway" if c else None, point="gateway_wan",
                               unit="bit/s", missing_reason=WAN_GUIDANCE, missing_state="unsupported"))  # fmt: skip
-    for key, label, metric in (("host_rx", "Host NIC receive", "net.rx_bps"), ("host_tx", "Host NIC transmit", "net.tx_bps")):
+    for key, label, metric in (
+        ("host_rx", "Host NIC receive", "net.rx_bps"),
+        ("host_tx", "Host NIC transmit", "net.tx_bps"),
+    ):
         c = cur.get(f"{sid}|{metric}|{iface}") if sid and iface else None
         k = _live_kpi(key, label, c, now=now, fresh=fresh, source=f"{src_name} · {iface}" if c else src_name,
                       point="host_nic", unit="bit/s", missing_reason="No agent is reporting interface counters yet.")  # fmt: skip
@@ -298,7 +350,10 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
     window_s = 60
     gw_id = primary["gateway_target_id"]
     if gw_id is None:
-        for key, label, unit in (("gateway_latency", "Gateway latency", "ms"), ("packet_loss", "Packet loss", "percent")):
+        for key, label, unit in (
+            ("gateway_latency", "Gateway latency", "ms"),
+            ("packet_loss", "Packet loss", "percent"),
+        ):
             kpis.append(Kpi(key=key, label=label, value=None, unit=unit, state="unavailable",
                             reason="No gateway probe target is enabled (Settings → Probe targets)."))  # fmt: skip
     else:
@@ -326,7 +381,8 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
     # Findings
     sev_rows = (
         await session.execute(
-            select(Finding.severity, func.count()).where(Finding.status.in_(("open", "acknowledged", "snoozed")))
+            select(Finding.severity, func.count())
+            .where(Finding.status.in_(("open", "acknowledged", "snoozed")))
             .group_by(Finding.severity)  # fmt: skip
         )
     ).all()
@@ -335,7 +391,7 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
     has_posture = (await session.execute(select(func.count()).select_from(Capability).where(
         Capability.name.in_(("listening_sockets", "windows_firewall")), Capability.status == "supported"))).scalar_one()  # fmt: skip
     kpis.append(Kpi(
-        key="open_findings", label="Open posture findings", value=float(sum(by_sev.values())) if has_posture or by_sev else None,
+        key="open_findings", label="Open findings", value=float(sum(by_sev.values())) if has_posture or by_sev else None,
         unit="findings", state="ok" if has_posture or by_sev else "unknown", ts=last_finding_ts,
         source="Read-only configuration checks", detail={"by_severity": by_sev},
         reason=None if has_posture or by_sev else "No agent has reported posture data yet, so nothing was checked.",
@@ -343,13 +399,19 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
 
     inet = await internet_status(session, now=now)
     alerts = list(
-        (await session.execute(select(Alert).where(Alert.state != "resolved").order_by(Alert.started_at.desc()).limit(6))).scalars()
+        (
+            await session.execute(
+                select(Alert).where(Alert.state != "resolved").order_by(Alert.started_at.desc()).limit(6)
+            )
+        ).scalars()
     )
     events = list(
         (
             await session.execute(
-                select(Event).where(Event.kind.in_(("device.first_seen", "agent.registered", "device.merged")))
-                .order_by(Event.ts.desc()).limit(8)  # fmt: skip
+                select(Event)
+                .where(Event.kind.in_(("device.first_seen", "agent.registered", "device.merged")))
+                .order_by(Event.ts.desc())
+                .limit(8)  # fmt: skip
             )
         ).scalars()
     )
@@ -359,18 +421,37 @@ async def build_overview(session: AsyncSession, *, now: datetime, settings: Runt
         "demo_mode": get_config().demo_mode,
         "kpis": kpis,
         "primary": primary,
-        "internet": {"status": inet.status, "reason": inet.reason, "signals_total": inet.signals_total,
-                     "signals_ok": inet.signals_ok},  # fmt: skip
+        "internet": {
+            "status": inet.status,
+            "reason": inet.reason,
+            "signals_total": inet.signals_total,
+            "signals_ok": inet.signals_ok,
+        },  # fmt: skip
         "active_alerts": [
-            {"id": a.id, "kind": a.kind, "severity": a.severity, "title": a.title, "state": a.state,
-             "started_at": a.started_at} for a in alerts
+            {
+                "id": a.id,
+                "kind": a.kind,
+                "severity": a.severity,
+                "title": a.title,
+                "state": a.state,
+                "started_at": a.started_at,
+            }
+            for a in alerts
         ],  # fmt: skip
         "recent_device_events": [
-            {"id": e.id, "ts": e.ts, "kind": e.kind, "message": e.message, "asset_id": e.asset_id} for e in events
+            {"id": e.id, "ts": e.ts, "kind": e.kind, "message": e.message, "asset_id": e.asset_id}
+            for e in events
         ],
-        "per_device_traffic": {"supported": dev_cap.status == "supported", "guidance": dev_cap.guidance,
-                               "sources": dev_cap.sources},  # fmt: skip
-        "posture": {"open_by_severity": by_sev, "last_observed_at": last_finding_ts, "checked": bool(has_posture)},
+        "per_device_traffic": {
+            "supported": dev_cap.status == "supported",
+            "guidance": dev_cap.guidance,
+            "sources": dev_cap.sources,
+        },  # fmt: skip
+        "posture": {
+            "open_by_severity": by_sev,
+            "last_observed_at": last_finding_ts,
+            "checked": bool(has_posture),
+        },
     }
 
 
@@ -382,8 +463,15 @@ async def build_topology(session: AsyncSession) -> dict[str, Any]:
     for s in segments:
         nodes.append({"id": f"segment:{s.id}", "type": "segment", "label": s.cidr, "meta": {"name": s.name}})
     assets = list((await session.execute(select(Asset).where(Asset.merged_into_id.is_(None)))).scalars())
+    # Unnamed devices are labelled by their most recently observed address rather than "Device #N".
+    last_ip: dict[int, str] = {}
+    for obs in (
+        await session.execute(select(AddressObservation).order_by(AddressObservation.last_seen))
+    ).scalars():
+        last_ip[obs.asset_id] = obs.ip
     for a in assets:
-        nodes.append({"id": f"asset:{a.id}", "type": "asset", "label": a.display_name or a.hostname or f"Device #{a.id}",
+        nodes.append({"id": f"asset:{a.id}", "type": "asset",
+                      "label": a.display_name or a.hostname or last_ip.get(a.id) or f"Device #{a.id}",
                       "meta": {"asset_type": a.asset_type, "managed": a.managed, "confidence": a.confidence}})  # fmt: skip
     asset_ids = {a.id for a in assets}
     nets = [(s.id, ipaddress.ip_network(s.cidr)) for s in segments]
@@ -391,8 +479,17 @@ async def build_topology(session: AsyncSession) -> dict[str, Any]:
         if i.asset_id not in asset_ids or i.name == "lo":
             continue
         nid = f"interface:{i.id}"
-        nodes.append({"id": nid, "type": "interface", "label": i.name, "meta": {"mac": i.mac, "is_up": i.is_up}})
-        edges.append({"source": f"asset:{i.asset_id}", "target": nid, "kind": "HAS_INTERFACE", "evidence": "agent inventory"})
+        nodes.append(
+            {"id": nid, "type": "interface", "label": i.name, "meta": {"mac": i.mac, "is_up": i.is_up}}
+        )
+        edges.append(
+            {
+                "source": f"asset:{i.asset_id}",
+                "target": nid,
+                "kind": "HAS_INTERFACE",
+                "evidence": "agent inventory",
+            }
+        )
         for a in i.addresses:
             try:
                 addr = ipaddress.ip_address(a["address"])
@@ -404,18 +501,29 @@ async def build_topology(session: AsyncSession) -> dict[str, Any]:
                                   "evidence": f"address {addr}"})  # fmt: skip
     managed = {a.id for a in assets if a.managed}
     seen: set[tuple[int, int]] = set()
-    for o in (await session.execute(select(AddressObservation).where(AddressObservation.segment_id.is_not(None)))).scalars():
+    for o in (
+        await session.execute(select(AddressObservation).where(AddressObservation.segment_id.is_not(None)))
+    ).scalars():
         if o.asset_id in managed or o.asset_id not in asset_ids or (o.asset_id, o.segment_id) in seen:
             continue
         seen.add((o.asset_id, o.segment_id))  # type: ignore[arg-type]
         edges.append({"source": f"asset:{o.asset_id}", "target": f"segment:{o.segment_id}", "kind": "SEEN_ON",
                       "evidence": o.kind.replace("_", " ")})  # fmt: skip
-    for svc in (await session.execute(select(ObservedService).where(ObservedService.active.is_(True)))).scalars():
+    for svc in (
+        await session.execute(select(ObservedService).where(ObservedService.active.is_(True)))
+    ).scalars():
         if svc.asset_id not in asset_ids:
             continue
         nid = f"service:{svc.id}"
         nodes.append({"id": nid, "type": "service", "label": f"{svc.proto}/{svc.port}",
                       "meta": {"address": svc.address, "process": svc.process or svc.container, "origin": svc.origin}})  # fmt: skip
-        edges.append({"source": f"asset:{svc.asset_id}", "target": nid, "kind": "LISTENS_ON", "evidence": svc.origin.replace("_", " ")})
+        edges.append(
+            {
+                "source": f"asset:{svc.asset_id}",
+                "target": nid,
+                "kind": "LISTENS_ON",
+                "evidence": svc.origin.replace("_", " "),
+            }
+        )
     return {"nodes": nodes, "edges": edges,
             "note": "Shows observed relationships only. It is not an attack-path graph and implies no reachability."}  # fmt: skip

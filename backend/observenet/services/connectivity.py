@@ -103,17 +103,23 @@ class InternetStatus:
     signals_ok: int
 
 
-def classify_internet(signals: Sequence[Signal], *, consecutive_failures: int = 3, min_signals: int = 2) -> InternetStatus:
+def classify_internet(
+    signals: Sequence[Signal], *, consecutive_failures: int = 3, min_signals: int = 2
+) -> InternetStatus:
     """Combine independent external signals. One failing endpoint is never an outage:
     ``unreachable`` needs >= ``min_signals`` fresh signals that each failed their last
     ``consecutive_failures`` checks."""
     fresh = [s for s in signals if s.fresh and s.recent]
     if not fresh:
-        why = "No external checks are configured." if not signals else "No recent results from external checks."
+        why = (
+            "No external checks are configured." if not signals else "No recent results from external checks."
+        )
         return InternetStatus("unknown", why, len(signals), 0)
     ok = [s for s in fresh if s.recent[-1]]
     if len(ok) == len(fresh):
-        return InternetStatus("reachable", f"All {len(fresh)} external checks succeeded.", len(fresh), len(ok))
+        return InternetStatus(
+            "reachable", f"All {len(fresh)} external checks succeeded.", len(fresh), len(ok)
+        )
     if ok:
         failing = ", ".join(s.name for s in fresh if not s.recent[-1])
         return InternetStatus(
@@ -121,7 +127,9 @@ def classify_internet(signals: Sequence[Signal], *, consecutive_failures: int = 
             "The failing endpoint(s) may be down or filtered rather than your connection.", len(fresh), len(ok),
         )  # fmt: skip
     hard_down = [
-        s for s in fresh if len(s.recent) >= consecutive_failures and not any(s.recent[-consecutive_failures:])
+        s
+        for s in fresh
+        if len(s.recent) >= consecutive_failures and not any(s.recent[-consecutive_failures:])
     ]
     if len(fresh) >= min_signals and len(hard_down) == len(fresh):
         return InternetStatus(
@@ -151,7 +159,9 @@ async def load_points(
     return [ProbePoint(ts, success, latency) for ts, success, latency in reversed(rows)]
 
 
-async def internet_status(session: AsyncSession, *, now: datetime, interval_slack: float = 3.0) -> InternetStatus:
+async def internet_status(
+    session: AsyncSession, *, now: datetime, interval_slack: float = 3.0
+) -> InternetStatus:
     targets = list(
         (
             await session.execute(

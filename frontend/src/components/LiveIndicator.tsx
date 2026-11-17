@@ -36,13 +36,12 @@ export function LiveIndicator() {
         </span>
       }
     >
-      <div
-        tabIndex={0}
-        role="status"
-        aria-live="polite"
+      <button
+        type="button"
         data-testid="live-indicator"
         data-status={noSamples ? "no-data" : status}
-        className="flex items-center gap-2 rounded-full border border-line bg-raised/70 px-2.5 py-1 text-xs"
+        aria-label={`Live stream: ${c.label}`}
+        className="flex cursor-help items-center gap-2 rounded-full border border-line bg-raised/70 px-2.5 py-1 text-xs"
       >
         <span className="relative flex h-2 w-2">
           {status === "live" && !noSamples && <span className={cn("absolute inset-0 animate-pulse-ring rounded-full", c.dot)} />}
@@ -50,7 +49,7 @@ export function LiveIndicator() {
         </span>
         <span className={cn("font-medium", c.text)}>{c.label}</span>
         <span className="num hidden text-faint sm:inline">· {lastSampleAt ? timeAgo(new Date(lastSampleAt)) : "no samples"}</span>
-      </div>
+      </button>
     </Tooltip>
   );
 }

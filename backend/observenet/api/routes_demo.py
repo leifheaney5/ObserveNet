@@ -21,7 +21,7 @@ class DemoFix(BaseModel):
 
 @router.get("/state")
 async def demo_state(_: CurrentUser) -> dict[str, object]:
-    fixed = set(await get_redis().smembers(DEMO_STATE_KEY))  # type: ignore[misc]
+    fixed = {str(m) for m in await get_redis().smembers(DEMO_STATE_KEY)}
     return {"items": [{"item": k, "label": v, "fixed": k in fixed} for k, v in FIXABLE.items()],
             "note": "Simulates an operator changing a setting on a synthetic host so the Verify loop can be shown."}  # fmt: skip
 
@@ -32,7 +32,7 @@ async def demo_fix(body: DemoFix, _: AdminUser) -> dict[str, object]:
         raise HTTPException(422, "unknown demo item")
     redis = get_redis()
     if body.fixed:
-        await redis.sadd(DEMO_STATE_KEY, body.item)  # type: ignore[misc]
+        await redis.sadd(DEMO_STATE_KEY, body.item)
     else:
-        await redis.srem(DEMO_STATE_KEY, body.item)  # type: ignore[misc]
+        await redis.srem(DEMO_STATE_KEY, body.item)
     return {"item": body.item, "fixed": body.fixed}

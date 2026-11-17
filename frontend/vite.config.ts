@@ -15,12 +15,7 @@ export default defineConfig({
       "/graphql": { target: backend, changeOrigin: false },
     },
   },
-  build: {
-    sourcemap: false,
-    rollupOptions: {
-      output: { manualChunks: { charts: ["recharts"], react: ["react", "react-dom", "react-router-dom"] } },
-    },
-  },
+  build: { sourcemap: false },
   test: {
     environment: "jsdom",
     globals: true,

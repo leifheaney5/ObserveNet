@@ -34,7 +34,9 @@ class ProbeOutcome:
     error: str | None = None
 
 
-def validate_target(kind: str, host: str, port: int | None, interval_s: float, *, default_gateway: str | None) -> tuple[str, str]:
+def validate_target(
+    kind: str, host: str, port: int | None, interval_s: float, *, default_gateway: str | None
+) -> tuple[str, str]:
     """Agent-side safety net. Returns (resolved_host, scope) or raises TargetRejected."""
     if kind == "gateway_icmp":
         if host == "auto":
@@ -67,7 +69,9 @@ def validate_target(kind: str, host: str, port: int | None, interval_s: float, *
     else:
         scope = "internal" if addr.is_private else "external"
     if interval_s < MIN_INTERVAL[scope]:
-        raise TargetRejected(f"{scope} targets may not be probed more often than every {MIN_INTERVAL[scope]:g} s")
+        raise TargetRejected(
+            f"{scope} targets may not be probed more often than every {MIN_INTERVAL[scope]:g} s"
+        )
     return str(addr), scope
 
 
@@ -190,10 +194,12 @@ async def dns_probe(name: str, timeout_s: float) -> ProbeOutcome:
     loop = asyncio.get_running_loop()
     start = time.perf_counter()
     try:
-        infos = await asyncio.wait_for(loop.getaddrinfo(name, None, type=socket.SOCK_STREAM), timeout=timeout_s)
+        infos = await asyncio.wait_for(
+            loop.getaddrinfo(name, None, type=socket.SOCK_STREAM), timeout=timeout_s
+        )
     except TimeoutError:
         return ProbeOutcome(False, None, "system_resolver", None, "timeout")
     except OSError as exc:
         return ProbeOutcome(False, None, "system_resolver", None, exc.strerror or type(exc).__name__)
     elapsed = (time.perf_counter() - start) * 1000
-    return ProbeOutcome(True, round(elapsed, 3), "system_resolver", infos[0][4][0] if infos else None)
+    return ProbeOutcome(True, round(elapsed, 3), "system_resolver", str(infos[0][4][0]) if infos else None)

@@ -1,0 +1,7117 @@
+{
+  "components": {
+    "schemas": {
+      "AgentConfig": {
+        "description": "Server -> agent configuration. The agent re-validates everything locally.",
+        "properties": {
+          "config_version": {
+            "title": "Config Version",
+            "type": "string"
+          },
+          "discovery": {
+            "additionalProperties": true,
+            "title": "Discovery",
+            "type": "object"
+          },
+          "inventory_interval_s": {
+            "title": "Inventory Interval S",
+            "type": "number"
+          },
+          "posture_interval_s": {
+            "title": "Posture Interval S",
+            "type": "number"
+          },
+          "posture_requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posture Requested At"
+          },
+          "probes": {
+            "items": {
+              "$ref": "#/components/schemas/AgentProbeConfig"
+            },
+            "title": "Probes",
+            "type": "array"
+          },
+          "sample_interval_s": {
+            "title": "Sample Interval S",
+            "type": "number"
+          },
+          "speedtest": {
+            "additionalProperties": true,
+            "title": "Speedtest",
+            "type": "object"
+          }
+        },
+        "required": [
+          "config_version",
+          "sample_interval_s",
+          "inventory_interval_s",
+          "posture_interval_s",
+          "posture_requested_at",
+          "probes",
+          "discovery",
+          "speedtest"
+        ],
+        "title": "AgentConfig",
+        "type": "object"
+      },
+      "AgentInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_uid": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "title": "Agent Uid",
+            "type": "string"
+          },
+          "agent_version": {
+            "maxLength": 32,
+            "title": "Agent Version",
+            "type": "string"
+          },
+          "emulates": {
+            "anyOf": [
+              {
+                "enum": [
+                  "linux",
+                  "windows",
+                  "router"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emulates"
+          },
+          "hostname": {
+            "maxLength": 255,
+            "title": "Hostname",
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "linux",
+              "windows",
+              "router",
+              "demo"
+            ],
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_uid",
+          "hostname",
+          "platform",
+          "agent_version"
+        ],
+        "title": "AgentInfo",
+        "type": "object"
+      },
+      "AgentProbeConfig": {
+        "properties": {
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "interval_s": {
+            "title": "Interval S",
+            "type": "number"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "title": "Timeout Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_id",
+          "kind",
+          "host",
+          "port",
+          "interval_s",
+          "timeout_ms"
+        ],
+        "title": "AgentProbeConfig",
+        "type": "object"
+      },
+      "AlertOut": {
+        "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_demo": {
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Reason"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "source_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ts"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "severity",
+          "title",
+          "summary",
+          "details",
+          "asset_id",
+          "source_id",
+          "finding_id",
+          "source_ts",
+          "started_at",
+          "resolved_at",
+          "resolved_reason",
+          "acknowledged_at",
+          "snoozed_until",
+          "is_demo"
+        ],
+        "title": "AlertOut",
+        "type": "object"
+      },
+      "AlertRuleOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "description",
+          "enabled",
+          "severity",
+          "params"
+        ],
+        "title": "AlertRuleOut",
+        "type": "object"
+      },
+      "AlertRulePatch": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "maximum": 1000000000000.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "info",
+                  "warning",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          }
+        },
+        "title": "AlertRulePatch",
+        "type": "object"
+      },
+      "AuditOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_label": {
+            "title": "Actor Label",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Type"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ts",
+          "actor_label",
+          "action",
+          "target_type",
+          "target_id",
+          "ip",
+          "details"
+        ],
+        "title": "AuditOut",
+        "type": "object"
+      },
+      "CapabilitiesOut": {
+        "properties": {
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "network": {
+            "items": {
+              "$ref": "#/components/schemas/NetCapability"
+            },
+            "title": "Network",
+            "type": "array"
+          },
+          "router_provider": {
+            "additionalProperties": true,
+            "title": "Router Provider",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generated_at",
+          "demo_mode",
+          "network",
+          "router_provider"
+        ],
+        "title": "CapabilitiesOut",
+        "type": "object"
+      },
+      "CapabilityIn": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "supported",
+              "unsupported",
+              "unavailable",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "CapabilityIn",
+        "type": "object"
+      },
+      "CapabilityOut": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail",
+          "updated_at"
+        ],
+        "title": "CapabilityOut",
+        "type": "object"
+      },
+      "CollectionSettings": {
+        "properties": {
+          "inventory_interval_s": {
+            "default": 30.0,
+            "maximum": 3600.0,
+            "minimum": 10.0,
+            "title": "Inventory Interval S",
+            "type": "number"
+          },
+          "posture_interval_s": {
+            "default": 300.0,
+            "maximum": 86400.0,
+            "minimum": 30.0,
+            "title": "Posture Interval S",
+            "type": "number"
+          },
+          "sample_interval_s": {
+            "default": 1.0,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Sample Interval S",
+            "type": "number"
+          }
+        },
+        "title": "CollectionSettings",
+        "type": "object"
+      },
+      "ConnectivityOut": {
+        "properties": {
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "internet": {
+            "additionalProperties": true,
+            "title": "Internet",
+            "type": "object"
+          },
+          "outages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Outages",
+            "type": "array"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetSummary"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "wifi": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Wifi",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generated_at",
+          "internet",
+          "targets",
+          "outages",
+          "wifi"
+        ],
+        "title": "ConnectivityOut",
+        "type": "object"
+      },
+      "CurrentValue": {
+        "properties": {
+          "age_s": {
+            "title": "Age S",
+            "type": "number"
+          },
+          "freshness": {
+            "title": "Freshness",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "integer"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "source_id",
+          "metric",
+          "label",
+          "value",
+          "unit",
+          "quality",
+          "ts",
+          "age_s",
+          "freshness"
+        ],
+        "title": "CurrentValue",
+        "type": "object"
+      },
+      "DefaultGateway": {
+        "additionalProperties": false,
+        "properties": {
+          "interface": {
+            "maxLength": 64,
+            "title": "Interface",
+            "type": "string"
+          },
+          "ip": {
+            "maxLength": 64,
+            "title": "Ip",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ip",
+          "interface"
+        ],
+        "title": "DefaultGateway",
+        "type": "object"
+      },
+      "DeviceDetail": {
+        "properties": {
+          "addresses": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Addresses",
+            "type": "array"
+          },
+          "alerts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceOut"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "identities": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Identities",
+            "type": "array"
+          },
+          "interfaces": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Interfaces",
+            "type": "array"
+          },
+          "merges": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Merges",
+            "type": "array"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesOut"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "services": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "required": [
+          "device",
+          "identities",
+          "addresses",
+          "interfaces",
+          "services",
+          "series",
+          "findings",
+          "alerts",
+          "events",
+          "merges"
+        ],
+        "title": "DeviceDetail",
+        "type": "object"
+      },
+      "DeviceOut": {
+        "properties": {
+          "asset_type": {
+            "title": "Asset Type",
+            "type": "string"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "confidence_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Reason"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "favorite": {
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "hostname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hostname"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_demo": {
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "last_seen_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen Source"
+          },
+          "mac_randomized": {
+            "title": "Mac Randomized",
+            "type": "boolean"
+          },
+          "managed": {
+            "title": "Managed",
+            "type": "boolean"
+          },
+          "merged_into_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Into Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "open_findings": {
+            "title": "Open Findings",
+            "type": "integer"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "presence": {
+            "$ref": "#/components/schemas/Presence"
+          },
+          "primary_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Ip"
+          },
+          "primary_mac": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Mac"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "vendor_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Method"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name",
+          "hostname",
+          "asset_type",
+          "group_name",
+          "owner",
+          "tags",
+          "notes",
+          "favorite",
+          "vendor",
+          "vendor_method",
+          "confidence",
+          "confidence_reason",
+          "mac_randomized",
+          "managed",
+          "is_demo",
+          "first_seen",
+          "last_seen",
+          "last_seen_source",
+          "presence",
+          "primary_ip",
+          "primary_mac",
+          "open_findings",
+          "merged_into_id"
+        ],
+        "title": "DeviceOut",
+        "type": "object"
+      },
+      "DevicePage": {
+        "properties": {
+          "coverage_note": {
+            "title": "Coverage Note",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "coverage_note"
+        ],
+        "title": "DevicePage",
+        "type": "object"
+      },
+      "DevicePatch": {
+        "properties": {
+          "asset_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Type"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "favorite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favorite"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 40,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "title": "DevicePatch",
+        "type": "object"
+      },
+      "DiscoverySettings": {
+        "description": "Opt-in low-rate ICMP sweep. Off by default; restricted to approved private CIDRs.",
+        "properties": {
+          "cidrs": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Cidrs",
+            "type": "array"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "interval_minutes": {
+            "default": 60,
+            "maximum": 1440.0,
+            "minimum": 15.0,
+            "title": "Interval Minutes",
+            "type": "integer"
+          },
+          "max_probes_per_second": {
+            "default": 2.0,
+            "exclusiveMinimum": 0.0,
+            "maximum": 10.0,
+            "title": "Max Probes Per Second",
+            "type": "number"
+          }
+        },
+        "title": "DiscoverySettings",
+        "type": "object"
+      },
+      "DockerPort": {
+        "additionalProperties": false,
+        "properties": {
+          "container": {
+            "maxLength": 120,
+            "title": "Container",
+            "type": "string"
+          },
+          "container_port": {
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Container Port",
+            "type": "integer"
+          },
+          "host_address": {
+            "maxLength": 64,
+            "title": "Host Address",
+            "type": "string"
+          },
+          "host_port": {
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Host Port",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "proto": {
+            "enum": [
+              "tcp",
+              "udp"
+            ],
+            "title": "Proto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "container",
+          "proto",
+          "host_address",
+          "host_port",
+          "container_port"
+        ],
+        "title": "DockerPort",
+        "type": "object"
+      },
+      "DockerSection": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Method",
+            "type": "string"
+          },
+          "published_ports": {
+            "items": {
+              "$ref": "#/components/schemas/DockerPort"
+            },
+            "maxItems": 2048,
+            "title": "Published Ports",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "DockerSection",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "alert_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert Id"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ts",
+          "kind",
+          "severity",
+          "message",
+          "asset_id",
+          "source_id",
+          "alert_id",
+          "finding_id",
+          "data"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EvidenceOut": {
+        "properties": {
+          "assessment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Id"
+          },
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "collection_method": {
+            "title": "Collection Method",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "observed": {
+            "title": "Observed",
+            "type": "boolean"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "observed",
+          "collected_at",
+          "collection_method",
+          "summary",
+          "data",
+          "source_id",
+          "assessment_id"
+        ],
+        "title": "EvidenceOut",
+        "type": "object"
+      },
+      "FindingAction": {
+        "properties": {
+          "action": {
+            "enum": [
+              "acknowledge",
+              "snooze",
+              "close",
+              "reopen"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "FindingAction",
+        "type": "object"
+      },
+      "FindingDetail": {
+        "properties": {
+          "disclaimer": {
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "finding": {
+            "$ref": "#/components/schemas/FindingOut"
+          },
+          "history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "remediation": {
+            "items": {
+              "$ref": "#/components/schemas/RemediationOut"
+            },
+            "title": "Remediation",
+            "type": "array"
+          },
+          "verifications": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationOut"
+            },
+            "title": "Verifications",
+            "type": "array"
+          }
+        },
+        "required": [
+          "finding",
+          "evidence",
+          "remediation",
+          "verifications",
+          "history",
+          "disclaimer"
+        ],
+        "title": "FindingDetail",
+        "type": "object"
+      },
+      "FindingOut": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "integer"
+          },
+          "asset_name": {
+            "title": "Asset Name",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "classification": {
+            "title": "Classification",
+            "type": "string"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "first_observed_at": {
+            "format": "date-time",
+            "title": "First Observed At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "impact": {
+            "title": "Impact",
+            "type": "string"
+          },
+          "inference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inference"
+          },
+          "is_demo": {
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "last_observed_at": {
+            "format": "date-time",
+            "title": "Last Observed At",
+            "type": "string"
+          },
+          "observation": {
+            "title": "Observation",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "integer"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "severity_rationale": {
+            "title": "Severity Rationale",
+            "type": "string"
+          },
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "verification_status": {
+            "title": "Verification Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id",
+          "asset_name",
+          "source_id",
+          "rule_id",
+          "rule_version",
+          "subject",
+          "category",
+          "title",
+          "observation",
+          "inference",
+          "impact",
+          "classification",
+          "severity",
+          "severity_rationale",
+          "confidence",
+          "status",
+          "verification_status",
+          "first_observed_at",
+          "last_observed_at",
+          "resolved_at",
+          "snoozed_until",
+          "is_demo"
+        ],
+        "title": "FindingOut",
+        "type": "object"
+      },
+      "FirewallProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "enum": [
+              "Domain",
+              "Private",
+              "Public"
+            ],
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "enabled"
+        ],
+        "title": "FirewallProfile",
+        "type": "object"
+      },
+      "FirewallSection": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Method",
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/FirewallProfile"
+            },
+            "maxItems": 3,
+            "title": "Profiles",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "FirewallSection",
+        "type": "object"
+      },
+      "FreshnessSettings": {
+        "properties": {
+          "device_seen_recently_s": {
+            "default": 600,
+            "maximum": 604800.0,
+            "minimum": 30.0,
+            "title": "Device Seen Recently S",
+            "type": "integer"
+          },
+          "disconnected_after_s": {
+            "default": 90,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Disconnected After S",
+            "type": "integer"
+          },
+          "stale_after_s": {
+            "default": 10,
+            "maximum": 3600.0,
+            "minimum": 3.0,
+            "title": "Stale After S",
+            "type": "integer"
+          }
+        },
+        "title": "FreshnessSettings",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Heartbeat": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityIn"
+            },
+            "maxItems": 64,
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "cpu_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Pct"
+          },
+          "errors": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "type": "string"
+            },
+            "maxProperties": 32,
+            "propertyNames": {
+              "maxLength": 64
+            },
+            "title": "Errors",
+            "type": "object"
+          },
+          "mem_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mem Pct"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime S"
+          }
+        },
+        "required": [
+          "ts"
+        ],
+        "title": "Heartbeat",
+        "type": "object"
+      },
+      "HistoryOut": {
+        "properties": {
+          "bucket_s": {
+            "title": "Bucket S",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "resolution": {
+            "enum": [
+              "raw",
+              "1m",
+              "1h"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/HistorySeries"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric",
+          "start",
+          "end",
+          "bucket_s",
+          "resolution",
+          "series"
+        ],
+        "title": "HistoryOut",
+        "type": "object"
+      },
+      "HistoryPoint": {
+        "properties": {
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "t": {
+            "format": "date-time",
+            "title": "T",
+            "type": "string"
+          }
+        },
+        "required": [
+          "t",
+          "avg",
+          "min",
+          "max",
+          "n"
+        ],
+        "title": "HistoryPoint",
+        "type": "object"
+      },
+      "HistorySeries": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "series": {
+            "$ref": "#/components/schemas/SeriesOut"
+          }
+        },
+        "required": [
+          "series",
+          "points"
+        ],
+        "title": "HistorySeries",
+        "type": "object"
+      },
+      "ImportRequest": {
+        "properties": {
+          "content": {
+            "maxLength": 500000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ImportRequest",
+        "type": "object"
+      },
+      "IngestAccepted": {
+        "properties": {
+          "batch_id": {
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "config_version": {
+            "title": "Config Version",
+            "type": "string"
+          },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          },
+          "status": {
+            "const": "accepted",
+            "default": "accepted",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id",
+          "samples",
+          "config_version"
+        ],
+        "title": "IngestAccepted",
+        "type": "object"
+      },
+      "IngestPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/AgentInfo"
+          },
+          "batch_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "heartbeat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Heartbeat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inventory": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Inventory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "probe_results": {
+            "items": {
+              "$ref": "#/components/schemas/ProbeResultIn"
+            },
+            "maxItems": 2000,
+            "title": "Probe Results",
+            "type": "array"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/Sample"
+            },
+            "maxItems": 5000,
+            "title": "Samples",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "agent",
+          "batch_id",
+          "sent_at"
+        ],
+        "title": "IngestPayload",
+        "type": "object"
+      },
+      "InterfaceAddress": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 64,
+            "title": "Address",
+            "type": "string"
+          },
+          "family": {
+            "enum": [
+              "ipv4",
+              "ipv6"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "prefix_len": {
+            "anyOf": [
+              {
+                "maximum": 128.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix Len"
+          }
+        },
+        "required": [
+          "family",
+          "address"
+        ],
+        "title": "InterfaceAddress",
+        "type": "object"
+      },
+      "InterfaceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/InterfaceAddress"
+            },
+            "maxItems": 64,
+            "title": "Addresses",
+            "type": "array"
+          },
+          "is_up": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Up"
+          },
+          "link_speed_mbps": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Speed Mbps"
+          },
+          "mac": {
+            "anyOf": [
+              {
+                "maxLength": 17,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac"
+          },
+          "mtu": {
+            "anyOf": [
+              {
+                "maximum": 65536.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtu"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "InterfaceIn",
+        "type": "object"
+      },
+      "Inventory": {
+        "additionalProperties": false,
+        "properties": {
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "default_gateway": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefaultGateway"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interfaces": {
+            "items": {
+              "$ref": "#/components/schemas/InterfaceIn"
+            },
+            "maxItems": 256,
+            "title": "Interfaces",
+            "type": "array"
+          },
+          "neighbors": {
+            "items": {
+              "$ref": "#/components/schemas/NeighborIn"
+            },
+            "maxItems": 4096,
+            "title": "Neighbors",
+            "type": "array"
+          },
+          "neighbors_status": {
+            "default": "unavailable",
+            "enum": [
+              "ok",
+              "unavailable",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Neighbors Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "collected_at"
+        ],
+        "title": "Inventory",
+        "type": "object"
+      },
+      "Kpi": {
+        "properties": {
+          "detail": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Detail",
+            "type": "object"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "observation_point": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Point"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value",
+          "unit",
+          "state"
+        ],
+        "title": "Kpi",
+        "type": "object"
+      },
+      "ListeningSection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListeningSocket"
+            },
+            "maxItems": 4096,
+            "title": "Items",
+            "type": "array"
+          },
+          "method": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Method",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ListeningSection",
+        "type": "object"
+      },
+      "ListeningSocket": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 64,
+            "title": "Address",
+            "type": "string"
+          },
+          "port": {
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Port",
+            "type": "integer"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process"
+          },
+          "proto": {
+            "enum": [
+              "tcp",
+              "udp"
+            ],
+            "title": "Proto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proto",
+          "address",
+          "port"
+        ],
+        "title": "ListeningSocket",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MaintenanceIn": {
+        "properties": {
+          "alert_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Alert Kinds",
+            "type": "array"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "MaintenanceIn",
+        "type": "object"
+      },
+      "MaintenanceOut": {
+        "properties": {
+          "alert_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alert Kinds",
+            "type": "array"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "starts_at",
+          "ends_at",
+          "alert_kinds"
+        ],
+        "title": "MaintenanceOut",
+        "type": "object"
+      },
+      "MeOut": {
+        "properties": {
+          "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "user",
+          "csrf_token",
+          "demo_mode"
+        ],
+        "title": "MeOut",
+        "type": "object"
+      },
+      "MergeRequest": {
+        "properties": {
+          "into_id": {
+            "title": "Into Id",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "into_id"
+        ],
+        "title": "MergeRequest",
+        "type": "object"
+      },
+      "Meta": {
+        "properties": {
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "ObserveNet",
+            "title": "Name",
+            "type": "string"
+          },
+          "setup_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup Hint"
+          },
+          "setup_required": {
+            "title": "Setup Required",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "demo_mode",
+          "setup_required"
+        ],
+        "title": "Meta",
+        "type": "object"
+      },
+      "NeighborIn": {
+        "additionalProperties": false,
+        "properties": {
+          "interface": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interface"
+          },
+          "ip": {
+            "maxLength": 64,
+            "title": "Ip",
+            "type": "string"
+          },
+          "mac": {
+            "anyOf": [
+              {
+                "maxLength": 17,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac"
+          },
+          "state": {
+            "default": "reachable",
+            "maxLength": 24,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ip"
+        ],
+        "title": "NeighborIn",
+        "type": "object"
+      },
+      "NetCapability": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "NetCapability",
+        "type": "object"
+      },
+      "OverviewOut": {
+        "properties": {
+          "active_alerts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Active Alerts",
+            "type": "array"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "internet": {
+            "additionalProperties": true,
+            "title": "Internet",
+            "type": "object"
+          },
+          "kpis": {
+            "items": {
+              "$ref": "#/components/schemas/Kpi"
+            },
+            "title": "Kpis",
+            "type": "array"
+          },
+          "per_device_traffic": {
+            "additionalProperties": true,
+            "title": "Per Device Traffic",
+            "type": "object"
+          },
+          "posture": {
+            "additionalProperties": true,
+            "title": "Posture",
+            "type": "object"
+          },
+          "primary": {
+            "additionalProperties": true,
+            "title": "Primary",
+            "type": "object"
+          },
+          "recent_device_events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Recent Device Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "demo_mode",
+          "kpis",
+          "primary",
+          "internet",
+          "active_alerts",
+          "recent_device_events",
+          "per_device_traffic",
+          "posture"
+        ],
+        "title": "OverviewOut",
+        "type": "object"
+      },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "type": "object"
+      },
+      "Posture": {
+        "additionalProperties": false,
+        "properties": {
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "docker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DockerSection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firewall": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FirewallSection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listening": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListeningSection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "smb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SmbSection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "collected_at"
+        ],
+        "title": "Posture",
+        "type": "object"
+      },
+      "PostureSettings": {
+        "properties": {
+          "docker_port_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Docker Port Allowlist",
+            "type": "array"
+          },
+          "listener_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Listener Allowlist",
+            "type": "array"
+          },
+          "verify_timeout_s": {
+            "default": 90,
+            "maximum": 900.0,
+            "minimum": 15.0,
+            "title": "Verify Timeout S",
+            "type": "integer"
+          },
+          "windows_listener_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Windows Listener Allowlist",
+            "type": "array"
+          }
+        },
+        "title": "PostureSettings",
+        "type": "object"
+      },
+      "Presence": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "label",
+          "basis"
+        ],
+        "title": "Presence",
+        "type": "object"
+      },
+      "ProbeResultIn": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "jitter_ms": {
+            "anyOf": [
+              {
+                "maximum": 600000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jitter Ms"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "maximum": 600000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "method": {
+            "maxLength": 24,
+            "title": "Method",
+            "type": "string"
+          },
+          "resolved_host": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Host"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "integer"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_id",
+          "ts",
+          "success",
+          "method"
+        ],
+        "title": "ProbeResultIn",
+        "type": "object"
+      },
+      "ProbeTargetIn": {
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "host": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Host",
+            "type": "string"
+          },
+          "interval_s": {
+            "default": 30,
+            "maximum": 3600.0,
+            "minimum": 1.0,
+            "title": "Interval S",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "gateway_icmp",
+              "icmp",
+              "tcp",
+              "dns"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "maximum": 65535.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "scope": {
+            "enum": [
+              "gateway",
+              "internal",
+              "external"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "timeout_ms": {
+            "default": 1000,
+            "maximum": 10000.0,
+            "minimum": 100.0,
+            "title": "Timeout Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "scope",
+          "host"
+        ],
+        "title": "ProbeTargetIn",
+        "type": "object"
+      },
+      "ProbeTargetOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "interval_s": {
+            "title": "Interval S",
+            "type": "number"
+          },
+          "is_demo": {
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "timeout_ms": {
+            "title": "Timeout Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "scope",
+          "host",
+          "port",
+          "interval_s",
+          "timeout_ms",
+          "enabled",
+          "is_demo"
+        ],
+        "title": "ProbeTargetOut",
+        "type": "object"
+      },
+      "RemediationOut": {
+        "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "instruction": {
+            "title": "Instruction",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "position",
+          "instruction",
+          "command"
+        ],
+        "title": "RemediationOut",
+        "type": "object"
+      },
+      "RetentionSettings": {
+        "properties": {
+          "events_days": {
+            "default": 365,
+            "maximum": 3650.0,
+            "minimum": 7.0,
+            "title": "Events Days",
+            "type": "integer"
+          },
+          "posture_snapshots_days": {
+            "default": 90,
+            "maximum": 3650.0,
+            "minimum": 1.0,
+            "title": "Posture Snapshots Days",
+            "type": "integer"
+          },
+          "probe_results_hours": {
+            "default": 48,
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Probe Results Hours",
+            "type": "integer"
+          },
+          "raw_hours": {
+            "default": 48,
+            "maximum": 336.0,
+            "minimum": 1.0,
+            "title": "Raw Hours",
+            "type": "integer"
+          },
+          "rollup_1h_days": {
+            "default": 365,
+            "maximum": 3650.0,
+            "minimum": 7.0,
+            "title": "Rollup 1H Days",
+            "type": "integer"
+          },
+          "rollup_1m_days": {
+            "default": 90,
+            "maximum": 730.0,
+            "minimum": 1.0,
+            "title": "Rollup 1M Days",
+            "type": "integer"
+          }
+        },
+        "title": "RetentionSettings",
+        "type": "object"
+      },
+      "RuntimeSettings": {
+        "properties": {
+          "approved_cidrs": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Approved Cidrs",
+            "type": "array"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/CollectionSettings"
+          },
+          "discovery": {
+            "$ref": "#/components/schemas/DiscoverySettings"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/FreshnessSettings"
+          },
+          "posture": {
+            "$ref": "#/components/schemas/PostureSettings"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionSettings"
+          },
+          "speedtest": {
+            "$ref": "#/components/schemas/SpeedtestSettings"
+          }
+        },
+        "title": "RuntimeSettings",
+        "type": "object"
+      },
+      "Sample": {
+        "additionalProperties": false,
+        "properties": {
+          "interval_s": {
+            "default": 1.0,
+            "exclusiveMinimum": 0.0,
+            "maximum": 86400.0,
+            "title": "Interval S",
+            "type": "number"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Label",
+            "type": "string"
+          },
+          "metric": {
+            "maxLength": 64,
+            "title": "Metric",
+            "type": "string"
+          },
+          "quality": {
+            "default": "measured",
+            "enum": [
+              "measured",
+              "derived",
+              "synthetic"
+            ],
+            "title": "Quality",
+            "type": "string"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 16,
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "metric",
+          "ts",
+          "value",
+          "unit"
+        ],
+        "title": "Sample",
+        "type": "object"
+      },
+      "SeriesOut": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "first_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Ts"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "interval_s": {
+            "title": "Interval S",
+            "type": "number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "observation_point": {
+            "title": "Observation Point",
+            "type": "string"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "asset_id",
+          "metric",
+          "label",
+          "unit",
+          "observation_point",
+          "quality",
+          "interval_s",
+          "coverage",
+          "first_ts",
+          "last_ts"
+        ],
+        "title": "SeriesOut",
+        "type": "object"
+      },
+      "SmbSection": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Method",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "smb1_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smb1 Enabled"
+          },
+          "smb2_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smb2 Enabled"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SmbSection",
+        "type": "object"
+      },
+      "SnoozeRequest": {
+        "properties": {
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "until"
+        ],
+        "title": "SnoozeRequest",
+        "type": "object"
+      },
+      "SourceOut": {
+        "properties": {
+          "age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age S"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityOut"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "freshness": {
+            "title": "Freshness",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_demo": {
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observation_point": {
+            "title": "Observation Point",
+            "type": "string"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "platform",
+          "version",
+          "asset_id",
+          "observation_point",
+          "enabled",
+          "is_demo",
+          "created_at",
+          "last_seen_at",
+          "last_error",
+          "freshness",
+          "age_s",
+          "capabilities"
+        ],
+        "title": "SourceOut",
+        "type": "object"
+      },
+      "SourcePatch": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "SourcePatch",
+        "type": "object"
+      },
+      "SourceTestOut": {
+        "properties": {
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "freshness": {
+            "title": "Freshness",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "ok",
+          "freshness",
+          "checks",
+          "note"
+        ],
+        "title": "SourceTestOut",
+        "type": "object"
+      },
+      "SpeedtestSettings": {
+        "description": "Opt-in capacity test: downloads a bounded payload from a user-chosen HTTPS URL.",
+        "properties": {
+          "download_url": {
+            "default": "",
+            "title": "Download Url",
+            "type": "string"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "interval_hours": {
+            "default": 6.0,
+            "maximum": 168.0,
+            "minimum": 3.0,
+            "title": "Interval Hours",
+            "type": "number"
+          },
+          "max_bytes": {
+            "default": 25000000,
+            "maximum": 500000000.0,
+            "minimum": 1000000.0,
+            "title": "Max Bytes",
+            "type": "integer"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          }
+        },
+        "title": "SpeedtestSettings",
+        "type": "object"
+      },
+      "StatusOut": {
+        "properties": {
+          "components": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "queues": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Queues",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "ws_clients": {
+            "title": "Ws Clients",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "demo_mode",
+          "components",
+          "queues",
+          "ws_clients"
+        ],
+        "title": "StatusOut",
+        "type": "object"
+      },
+      "TargetSummary": {
+        "properties": {
+          "jitter_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jitter Ms"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Method"
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts"
+          },
+          "latency_avg_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Avg Ms"
+          },
+          "latency_max_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Max Ms"
+          },
+          "latency_min_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Min Ms"
+          },
+          "latency_p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency P95 Ms"
+          },
+          "loss_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loss Pct"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "resolved_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Host"
+          },
+          "sample_size": {
+            "title": "Sample Size",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ProbeTargetOut"
+          },
+          "window_s": {
+            "title": "Window S",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target",
+          "window_s",
+          "sample_size",
+          "loss_pct",
+          "latency_avg_ms",
+          "latency_min_ms",
+          "latency_max_ms",
+          "latency_p95_ms",
+          "jitter_ms",
+          "last_ts",
+          "last_method",
+          "last_error",
+          "resolved_host",
+          "state",
+          "note"
+        ],
+        "title": "TargetSummary",
+        "type": "object"
+      },
+      "TokenCreate": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "ttl_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Days"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TokenCreate",
+        "type": "object"
+      },
+      "TokenCreated": {
+        "properties": {
+          "info": {
+            "$ref": "#/components/schemas/TokenOut"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "info"
+        ],
+        "title": "TokenCreated",
+        "type": "object"
+      },
+      "TokenOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_bootstrap": {
+            "title": "Is Bootstrap",
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "token_prefix": {
+            "title": "Token Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "scopes",
+          "source_id",
+          "created_at",
+          "expires_at",
+          "revoked_at",
+          "last_used_at",
+          "is_bootstrap"
+        ],
+        "title": "TokenOut",
+        "type": "object"
+      },
+      "UserCreate": {
+        "properties": {
+          "password": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "default": "viewer",
+            "enum": [
+              "admin",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "UserCreate",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "disabled": {
+            "title": "Disabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "role",
+          "disabled",
+          "created_at",
+          "last_login_at"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "UserPatch": {
+        "properties": {
+          "disabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 12,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "admin",
+                  "viewer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "UserPatch",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationOut": {
+        "properties": {
+          "after_evidence_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Evidence Id"
+          },
+          "algorithm_version": {
+            "title": "Algorithm Version",
+            "type": "string"
+          },
+          "before_evidence_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Evidence Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deadline_at": {
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "outcome_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Reason"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trigger",
+          "status",
+          "outcome",
+          "outcome_reason",
+          "algorithm_version",
+          "requested_at",
+          "deadline_at",
+          "completed_at",
+          "before_evidence_id",
+          "after_evidence_id",
+          "diff"
+        ],
+        "title": "VerificationOut",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ObserveNet API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/agent/config": {
+      "get": {
+        "description": "What the calling agent should collect. Targets were validated against the network scope.",
+        "operationId": "agent_config_api_v1_agent_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Agent Config",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/alert-rules": {
+      "get": {
+        "operationId": "list_alert_rules_api_v1_alert_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertRuleOut"
+                  },
+                  "title": "Response List Alert Rules Api V1 Alert Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Alert Rules",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alert-rules/{rule_id}": {
+      "patch": {
+        "operationId": "patch_alert_rule_api_v1_alert_rules__rule_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertRulePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRuleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Alert Rule",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts": {
+      "get": {
+        "operationId": "list_alerts_api_v1_alerts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "resolved",
+                "all"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertOut"
+                  },
+                  "title": "Response List Alerts Api V1 Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}/acknowledge": {
+      "post": {
+        "operationId": "acknowledge_alert_api_v1_alerts__alert_id__acknowledge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acknowledge Alert",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}/resolve": {
+      "post": {
+        "operationId": "close_alert_api_v1_alerts__alert_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Alert",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}/snooze": {
+      "post": {
+        "operationId": "snooze_alert_api_v1_alerts__alert_id__snooze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snooze Alert",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/assessments": {
+      "get": {
+        "operationId": "list_assessments_api_v1_assessments_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Assessments Api V1 Assessments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Assessments",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "list_audit_api_v1_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditOut"
+                  },
+                  "title": "Response List Audit Api V1 Audit Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password": {
+      "post": {
+        "operationId": "change_password_api_v1_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities_api_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Capabilities",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/checks": {
+      "get": {
+        "description": "Rule catalog with the most recent result per rule (including Unsupported/Unknown).",
+        "operationId": "list_checks_api_v1_checks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Checks Api V1 Checks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Checks",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/connectivity/summary": {
+      "get": {
+        "operationId": "connectivity_summary_api_v1_connectivity_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window_s",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 3600,
+              "minimum": 10,
+              "title": "Window S",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectivityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connectivity Summary",
+        "tags": [
+          "connectivity"
+        ]
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "operationId": "list_devices_api_v1_devices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "favorite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Favorite"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Managed"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_merged",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Merged",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Devices",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/import": {
+      "post": {
+        "description": "Import a router's client/DHCP list (CSV with header, or JSON array).",
+        "operationId": "import_clients_api_v1_devices_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Import Clients Api V1 Devices Import Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Clients",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/merges/{merge_id}/undo": {
+      "post": {
+        "operationId": "undo_merge_api_v1_devices_merges__merge_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "merge_id",
+            "required": true,
+            "schema": {
+              "title": "Merge Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Undo Merge Api V1 Devices Merges  Merge Id  Undo Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Merge",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}": {
+      "get": {
+        "operationId": "get_device_api_v1_devices__device_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device",
+        "tags": [
+          "devices"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_device_api_v1_devices__device_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevicePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Device",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/devices/{device_id}/merge": {
+      "post": {
+        "description": "Merge *this* device into ``into_id`` (explicit, audited, undoable).",
+        "operationId": "merge_device_api_v1_devices__device_id__merge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Merge Device Api V1 Devices  Device Id  Merge Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Device",
+        "tags": [
+          "devices"
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "list_events_api_v1_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind_prefix",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 48,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind Prefix"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Events Api V1 Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/export/devices": {
+      "get": {
+        "operationId": "export_devices_api_v1_export_devices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Devices",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/export/findings": {
+      "get": {
+        "operationId": "export_findings_api_v1_export_findings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Findings",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/findings": {
+      "get": {
+        "operationId": "list_findings_api_v1_findings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "open",
+                "acknowledged",
+                "snoozed",
+                "resolved",
+                "closed_unverified",
+                "all"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FindingOut"
+                  },
+                  "title": "Response List Findings Api V1 Findings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Findings",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/findings/{finding_id}": {
+      "get": {
+        "operationId": "get_finding_api_v1_findings__finding_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Finding",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/findings/{finding_id}/status": {
+      "post": {
+        "description": "Acknowledge / snooze / close / reopen. ``close`` yields ``closed_unverified`` \u2014 only a\nsuccessful re-check can produce ``resolved``.",
+        "operationId": "finding_action_api_v1_findings__finding_id__status_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finding Action",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/findings/{finding_id}/verify": {
+      "post": {
+        "description": "Re-run the same read-only check on fresh evidence. The result arrives asynchronously:\n``resolved`` only if evidence collected *after this request* no longer shows the condition.",
+        "operationId": "verify_finding_api_v1_findings__finding_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Finding",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "description": "Liveness: the process is up. Touches no dependency.",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Api V1 Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/ingest/agent": {
+      "post": {
+        "description": "Authenticated collector data. Validates, fans out live, and queues durable processing.",
+        "operationId": "ingest_agent_api_v1_ingest_agent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Agent",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/insights": {
+      "get": {
+        "operationId": "insights_api_v1_insights_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Insights Api V1 Insights Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Insights",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
+    "/api/v1/maintenance-windows": {
+      "get": {
+        "operationId": "list_windows_api_v1_maintenance_windows_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MaintenanceOut"
+                  },
+                  "title": "Response List Windows Api V1 Maintenance Windows Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Windows",
+        "tags": [
+          "alerts"
+        ]
+      },
+      "post": {
+        "operationId": "create_window_api_v1_maintenance_windows_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Window",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/maintenance-windows/{window_id}": {
+      "delete": {
+        "operationId": "delete_window_api_v1_maintenance_windows__window_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "window_id",
+            "required": true,
+            "schema": {
+              "title": "Window Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Window",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "description": "The only unauthenticated product endpoint: what the login page needs, nothing more.",
+        "operationId": "meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meta",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/metrics/current": {
+      "get": {
+        "description": "Latest value per series from the live cache, each with timestamp, age and freshness.",
+        "operationId": "metrics_current_api_v1_metrics_current_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metric"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CurrentValue"
+                  },
+                  "title": "Response Metrics Current Api V1 Metrics Current Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Metrics Current",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/metrics/history": {
+      "get": {
+        "description": "Time-bucketed history. Buckets < 60 s read raw samples (48 h retention); 1 min\u20131 h\nread minute rollups; \u2265 1 h read hourly rollups. Empty buckets are null, not zero.",
+        "operationId": "metrics_history_api_v1_metrics_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "metric",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bucket width in seconds; omitted = auto",
+            "in": "query",
+            "name": "bucket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bucket width in seconds; omitted = auto",
+              "title": "Bucket"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Metrics History",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/metrics/series": {
+      "get": {
+        "operationId": "list_series_api_v1_metrics_series_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metric"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SeriesOut"
+                  },
+                  "title": "Response List Series Api V1 Metrics Series Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Series",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "operationId": "overview_api_v1_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
+    "/api/v1/probe-targets": {
+      "get": {
+        "operationId": "list_targets_api_v1_probe_targets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProbeTargetOut"
+                  },
+                  "title": "Response List Targets Api V1 Probe Targets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Targets",
+        "tags": [
+          "connectivity"
+        ]
+      },
+      "post": {
+        "operationId": "create_target_api_v1_probe_targets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProbeTargetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeTargetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Target",
+        "tags": [
+          "connectivity"
+        ]
+      }
+    },
+    "/api/v1/probe-targets/{target_id}": {
+      "delete": {
+        "operationId": "delete_target_api_v1_probe_targets__target_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "title": "Target Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Target",
+        "tags": [
+          "connectivity"
+        ]
+      },
+      "patch": {
+        "operationId": "update_target_api_v1_probe_targets__target_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "title": "Target Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProbeTargetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeTargetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Target",
+        "tags": [
+          "connectivity"
+        ]
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "description": "Readiness: PostgreSQL reachable + migrated, Redis reachable.",
+        "operationId": "ready_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ready Api V1 Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "operationId": "get_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings_api_v1_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/deployment": {
+      "get": {
+        "description": "Non-secret deployment facts for the Settings \u2192 Domain page. Reports configuration only;\nit does not (and cannot) confirm that the public hostname is actually reachable.",
+        "operationId": "deployment_info_api_v1_settings_deployment_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Deployment Info Api V1 Settings Deployment Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Deployment Info",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/sources": {
+      "get": {
+        "operationId": "list_sources_api_v1_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceOut"
+                  },
+                  "title": "Response List Sources Api V1 Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sources",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources/{source_id}": {
+      "patch": {
+        "operationId": "patch_source_api_v1_sources__source_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Source",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources/{source_id}/test": {
+      "post": {
+        "description": "Non-invasive source test: evaluates what the backend already knows and, for agents,\nasks for a fresh posture snapshot on the agent's next config poll. Sends no probe itself.",
+        "operationId": "test_source_api_v1_sources__source_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Source",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "operationId": "service_status_api_v1_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Service Status",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/tokens": {
+      "get": {
+        "operationId": "list_tokens_api_v1_tokens_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TokenOut"
+                  },
+                  "title": "Response List Tokens Api V1 Tokens Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tokens",
+        "tags": [
+          "sources"
+        ]
+      },
+      "post": {
+        "operationId": "create_token_api_v1_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Token",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/tokens/{token_id}": {
+      "delete": {
+        "operationId": "revoke_token_api_v1_tokens__token_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "title": "Token Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Token",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/topology": {
+      "get": {
+        "operationId": "topology_api_v1_topology_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Topology Api V1 Topology Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Topology",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
+    "/api/v1/topology/peers/{asset_id}": {
+      "get": {
+        "description": "Devices observed on the same subnet(s). Answered by Neo4j when the optional graph\nprofile is configured, by PostgreSQL otherwise (``backend`` says which).",
+        "operationId": "topology_peers_api_v1_topology_peers__asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Topology Peers Api V1 Topology Peers  Asset Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Topology Peers",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
+    "/api/v1/traffic/top-devices": {
+      "get": {
+        "description": "Top devices by traffic \u2014 only when a source provides trustworthy per-device counters.\nWithout one this returns ``supported: false`` with guidance instead of an estimate.",
+        "operationId": "top_devices_api_v1_traffic_top_devices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window_s",
+            "required": false,
+            "schema": {
+              "default": 300,
+              "maximum": 3600,
+              "minimum": 30,
+              "title": "Window S",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Top Devices Api V1 Traffic Top Devices Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Top Devices",
+        "tags": [
+          "metrics"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "list_users_api_v1_users_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserOut"
+                  },
+                  "title": "Response List Users Api V1 Users Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Users",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "operationId": "create_user_api_v1_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create User",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}": {
+      "patch": {
+        "operationId": "patch_user_api_v1_users__user_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch User",
+        "tags": [
+          "auth"
+        ]
+      }
+    }
+  }
+}

@@ -26,6 +26,9 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 ignore = ["S101", "S104", "E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
@@ -34,5 +37,6 @@ exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "-q"

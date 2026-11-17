@@ -1,0 +1,33 @@
+# Build-time override for environments behind a TLS-inspecting HTTPS proxy (CI sandboxes,
+# some corporate networks). Not needed on a normal host.
+#
+#   EXTRA_CA_FILE=/path/to/ca-bundle.crt docker compose -f compose.yaml -f compose.proxy.yaml build
+#
+# It gives the build steps host networking, forwards HTTPS_PROXY and mounts the CA bundle as
+# a BuildKit secret (never stored in an image layer). Runtime behaviour is unchanged.
+x-proxy-build: &proxy-build
+  network: host
+  args:
+    HTTPS_PROXY: ${HTTPS_PROXY:-}
+    https_proxy: ${HTTPS_PROXY:-}
+    NO_PROXY: ${NO_PROXY:-}
+  secrets:
+    - extra_ca
+
+services:
+  migrate:
+    build: *proxy-build
+  api:
+    build: *proxy-build
+  worker:
+    build: *proxy-build
+  scheduler:
+    build: *proxy-build
+  web:
+    build: *proxy-build
+  collector:
+    build: *proxy-build
+
+secrets:
+  extra_ca:
+    file: ${EXTRA_CA_FILE:?set EXTRA_CA_FILE to the proxy CA bundle}

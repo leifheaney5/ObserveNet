@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -43,7 +43,12 @@ from observenet.models import (
     VerificationRun,
 )
 from observenet.models.inventory import ASSET_TYPES
-from observenet.providers.client_import import ClientListImportProvider, ImportError_, apply_import, parse_client_list
+from observenet.providers.client_import import (
+    ClientListImportProvider,
+    ImportError_,
+    apply_import,
+    parse_client_list,
+)
 from observenet.security import engine
 from observenet.services import alerts as alert_service
 from observenet.services import identity, views
@@ -76,18 +81,34 @@ async def _device_rows(db: AsyncSession, assets: list[Asset]) -> list[S.DeviceOu
     sources = {s.id: s for s in (await db.execute(select(DataSource))).scalars()}
     agent_seen = {s.asset_id: s.last_seen_at for s in sources.values() if s.asset_id}
     obs: dict[int, AddressObservation] = {}
-    for o in (await db.execute(select(AddressObservation).where(AddressObservation.asset_id.in_(ids))
-                               .order_by(AddressObservation.last_seen))).scalars():  # fmt: skip
-        if ":" in o.ip and o.asset_id in obs and ":" not in obs[o.asset_id].ip:
+    for row in (await db.execute(select(AddressObservation).where(AddressObservation.asset_id.in_(ids))
+                                 .order_by(AddressObservation.last_seen))).scalars():  # fmt: skip
+        if ":" in row.ip and row.asset_id in obs and ":" not in obs[row.asset_id].ip:
             continue  # prefer showing an IPv4 address as the primary one
-        obs[o.asset_id] = o
-    open_counts = dict(
-        (await db.execute(select(Finding.asset_id, func.count()).where(
-            Finding.asset_id.in_(ids), Finding.status.in_(engine.ACTIVE_STATUSES)).group_by(Finding.asset_id))).all()  # fmt: skip
+        obs[row.asset_id] = row
+    open_counts: dict[int, int] = {
+        asset_id: n
+        for asset_id, n in (
+            await db.execute(
+                select(Finding.asset_id, func.count())
+                .where(Finding.asset_id.in_(ids), Finding.status.in_(engine.ACTIVE_STATUSES))
+                .group_by(Finding.asset_id)
+            )
+        ).all()  # fmt: skip
+    }
+    # For hosts with an agent, the address on the default-route interface is the primary one
+    # (not a container bridge that happens to have been reported last).
+    primary_ip: dict[int, tuple[str, str | None]] = {}
+    default_ifaces = await db.execute(
+        select(Interface).where(Interface.asset_id.in_(ids), Interface.is_default_route.is_(True))
     )
+    for iface in default_ifaces.scalars():
+        v4 = next((addr["address"] for addr in iface.addresses if addr.get("family") == "ipv4"), None)
+        if v4:
+            primary_ip[iface.asset_id] = (v4, iface.mac)
     out = []
     for a in assets:
-        o = obs.get(a.id)
+        o: AddressObservation | None = obs.get(a.id)
         src = sources.get(a.last_seen_source_id) if a.last_seen_source_id else None
         out.append(S.DeviceOut(
             id=a.id, name=a.display_name or a.hostname or (o.hostname if o else None) or (o.ip if o else f"Device #{a.id}"),
@@ -97,7 +118,8 @@ async def _device_rows(db: AsyncSession, assets: list[Asset]) -> list[S.DeviceOu
             mac_randomized=a.mac_randomized, managed=a.managed, is_demo=a.is_demo, first_seen=a.first_seen,
             last_seen=a.last_seen, last_seen_source=src.name if src else None,
             presence=S.Presence(**views.presence(a, now, settings.freshness, agent_seen.get(a.id))),
-            primary_ip=o.ip if o else None, primary_mac=(o.mac or None) if o else None,
+            primary_ip=primary_ip[a.id][0] if a.id in primary_ip else (o.ip if o else None),
+            primary_mac=primary_ip[a.id][1] if a.id in primary_ip else ((o.mac or None) if o else None),
             open_findings=open_counts.get(a.id, 0), merged_into_id=a.merged_into_id,
         ))  # fmt: skip
     return out
@@ -133,14 +155,23 @@ async def list_devices(
     if q:
         like = f"%{q.lower()}%"
         matching = select(AddressObservation.asset_id).where(
-            or_(AddressObservation.ip.ilike(like), AddressObservation.mac.ilike(like), AddressObservation.hostname.ilike(like))
+            or_(
+                AddressObservation.ip.ilike(like),
+                AddressObservation.mac.ilike(like),
+                AddressObservation.hostname.ilike(like),
+            )
         )
         stmt = stmt.where(or_(func.lower(Asset.display_name).like(like), func.lower(Asset.hostname).like(like),
                               func.lower(Asset.vendor).like(like), Asset.id.in_(matching)))  # fmt: skip
     total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     rows = list(
-        (await db.execute(stmt.order_by(Asset.favorite.desc(), Asset.last_seen.desc().nulls_last(), Asset.id)
-                          .limit(limit).offset(offset))).scalars()  # fmt: skip
+        (
+            await db.execute(
+                stmt.order_by(Asset.favorite.desc(), Asset.last_seen.desc().nulls_last(), Asset.id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ).scalars()  # fmt: skip
     )
     return S.DevicePage(items=await _device_rows(db, rows), total=total, limit=limit, offset=offset,
                         coverage_note=COVERAGE_NOTE)  # fmt: skip
@@ -196,15 +227,27 @@ async def get_device(device_id: int, _: CurrentUser, db: DbSession) -> S.DeviceD
                                     .order_by(MetricSeries.metric, MetricSeries.label))).scalars())  # fmt: skip
     findings = [
         _finding_out(f, device.name).model_dump()
-        for f in (await db.execute(select(Finding).where(Finding.asset_id == asset.id).order_by(Finding.last_observed_at.desc()))).scalars()
+        for f in (
+            await db.execute(
+                select(Finding).where(Finding.asset_id == asset.id).order_by(Finding.last_observed_at.desc())
+            )
+        ).scalars()
     ]
     alerts = [
         S.AlertOut.model_validate(a).model_dump()
-        for a in (await db.execute(select(Alert).where(Alert.asset_id == asset.id).order_by(Alert.started_at.desc()).limit(20))).scalars()
+        for a in (
+            await db.execute(
+                select(Alert).where(Alert.asset_id == asset.id).order_by(Alert.started_at.desc()).limit(20)
+            )
+        ).scalars()
     ]
     events = [
         S.EventOut.model_validate(e).model_dump()
-        for e in (await db.execute(select(Event).where(Event.asset_id == asset.id).order_by(Event.ts.desc()).limit(50))).scalars()
+        for e in (
+            await db.execute(
+                select(Event).where(Event.asset_id == asset.id).order_by(Event.ts.desc()).limit(50)
+            )
+        ).scalars()
     ]
     merges = [
         {"id": m.id, "source_asset_id": m.source_asset_id, "target_asset_id": m.target_asset_id, "merged_at": m.merged_at,
@@ -239,7 +282,9 @@ async def patch_device(device_id: int, body: S.DevicePatch, admin: AdminUser, db
 
 
 @router.post("/devices/{device_id}/merge", tags=["devices"])
-async def merge_device(device_id: int, body: S.MergeRequest, admin: AdminUser, db: DbSession) -> dict[str, Any]:
+async def merge_device(
+    device_id: int, body: S.MergeRequest, admin: AdminUser, db: DbSession
+) -> dict[str, Any]:
     """Merge *this* device into ``into_id`` (explicit, audited, undoable)."""
     source_asset, target = await db.get(Asset, device_id), await db.get(Asset, body.into_id)
     if source_asset is None or target is None:
@@ -284,7 +329,9 @@ async def import_clients(body: S.ImportRequest, admin: AdminUser, db: DbSession)
 async def _asset_names(db: AsyncSession, ids: set[int]) -> dict[int, str]:
     if not ids:
         return {}
-    rows = (await db.execute(select(Asset.id, Asset.display_name, Asset.hostname).where(Asset.id.in_(ids)))).all()
+    rows = (
+        await db.execute(select(Asset.id, Asset.display_name, Asset.hostname).where(Asset.id.in_(ids)))
+    ).all()
     return {i: d or h or f"Device #{i}" for i, d, h in rows}
 
 
@@ -292,7 +339,9 @@ async def _asset_names(db: AsyncSession, ids: set[int]) -> dict[int, str]:
 async def list_findings(
     _: CurrentUser,
     db: DbSession,
-    status: Literal["active", "open", "acknowledged", "snoozed", "resolved", "closed_unverified", "all"] = "active",
+    status: Literal[
+        "active", "open", "acknowledged", "snoozed", "resolved", "closed_unverified", "all"
+    ] = "active",
     severity: str | None = None,
     asset_id: int | None = None,
     category: str | None = None,
@@ -331,7 +380,11 @@ async def get_finding(finding_id: int, _: CurrentUser, db: DbSession) -> S.Findi
         select(VerificationDiff).where(VerificationDiff.verification_run_id.in_([r.id for r in runs] or [0])))).scalars()}  # fmt: skip
     history = [
         {"ts": e.ts, "kind": e.kind, "message": e.message, "data": e.data}
-        for e in (await db.execute(select(Event).where(Event.finding_id == f.id).order_by(Event.ts.desc()).limit(50))).scalars()
+        for e in (
+            await db.execute(
+                select(Event).where(Event.finding_id == f.id).order_by(Event.ts.desc()).limit(50)
+            )
+        ).scalars()
     ]
     return S.FindingDetail(
         finding=_finding_out(f, names.get(f.asset_id, "?")),
@@ -350,7 +403,9 @@ async def get_finding(finding_id: int, _: CurrentUser, db: DbSession) -> S.Findi
     )  # fmt: skip
 
 
-@router.post("/findings/{finding_id}/verify", tags=["security"], response_model=S.VerificationOut, status_code=202)
+@router.post(
+    "/findings/{finding_id}/verify", tags=["security"], response_model=S.VerificationOut, status_code=202
+)
 async def verify_finding(finding_id: int, admin: AdminUser, db: DbSession) -> S.VerificationOut:
     """Re-run the same read-only check on fresh evidence. The result arrives asynchronously:
     ``resolved`` only if evidence collected *after this request* no longer shows the condition."""
@@ -360,7 +415,9 @@ async def verify_finding(finding_id: int, admin: AdminUser, db: DbSession) -> S.
     if f.rule_id == "OBS-STALE-001":
         raise HTTPException(409, "this finding resolves automatically when the agent reports again")
     if f.source_id is None:
-        raise HTTPException(409, "the source that produced this finding no longer exists; it cannot be re-checked")
+        raise HTTPException(
+            409, "the source that produced this finding no longer exists; it cannot be re-checked"
+        )
     pending = (await db.execute(select(VerificationRun).where(VerificationRun.finding_id == f.id,
                                                               VerificationRun.status == "pending"))).scalars().first()  # fmt: skip
     if pending is None:
@@ -378,7 +435,9 @@ async def verify_finding(finding_id: int, admin: AdminUser, db: DbSession) -> S.
 
 
 @router.post("/findings/{finding_id}/status", tags=["security"], response_model=S.FindingOut)
-async def finding_action(finding_id: int, body: S.FindingAction, admin: AdminUser, db: DbSession) -> S.FindingOut:
+async def finding_action(
+    finding_id: int, body: S.FindingAction, admin: AdminUser, db: DbSession
+) -> S.FindingOut:
     """Acknowledge / snooze / close / reopen. ``close`` yields ``closed_unverified`` — only a
     successful re-check can produce ``resolved``."""
     f = await db.get(Finding, finding_id)
@@ -404,7 +463,9 @@ async def finding_action(finding_id: int, body: S.FindingAction, admin: AdminUse
         if f.status in ("open",):
             raise HTTPException(409, "finding is already open")
         if f.status == "resolved":
-            raise HTTPException(409, "a verified-resolved finding reopens by itself if the condition is observed again")
+            raise HTTPException(
+                409, "a verified-resolved finding reopens by itself if the condition is observed again"
+            )
         f.status, f.snoozed_until = "open", None
     f.status_changed_at = now
     names = await _asset_names(db, {f.asset_id})
@@ -426,7 +487,8 @@ async def list_checks(_: CurrentUser, db: DbSession) -> list[dict[str, Any]]:
             select(CheckResult, Assessment.finished_at, Assessment.asset_id)
             .join(Assessment, Assessment.id == CheckResult.assessment_id)
             .where(Assessment.started_at > utcnow() - timedelta(days=7))
-            .order_by(Assessment.started_at.desc()).limit(2000)  # fmt: skip
+            .order_by(Assessment.started_at.desc())
+            .limit(2000)  # fmt: skip
         )
     ).all()
     for result, finished, asset_id in rows:
@@ -437,11 +499,22 @@ async def list_checks(_: CurrentUser, db: DbSession) -> list[dict[str, Any]]:
     names = await _asset_names(db, {v["asset_id"] for v in latest.values()})
     out = []
     for c in checks:
-        results = [{**v, "asset_name": names.get(v["asset_id"], "?")} for v in latest.values() if v["rule_id"] == c.rule_id]
-        if not results:
+        results = [
+            {**v, "asset_name": names.get(v["asset_id"], "?")}
+            for v in latest.values()
+            if v["rule_id"] == c.rule_id
+        ]
+        statuses = {r["status"] for r in results}
+        if c.rule_id == "OBS-STALE-001":
+            coverage = "continuous"  # evaluated by the scheduler from heartbeats, not from posture snapshots
+        elif not results:
             coverage = "unsupported" if c.platform == "router" else "not_evaluated"
-        else:
+        elif statuses & {"pass", "fail"}:
             coverage = "evaluated"
+        elif "unknown" in statuses:
+            coverage = "unknown"  # ran, but its input could not be read anywhere
+        else:
+            coverage = "unsupported"
         out.append({"rule_id": c.rule_id, "version": c.version, "title": c.title, "description": c.description,
                     "platform": c.platform, "category": c.category, "default_severity": c.default_severity,
                     "classification": c.classification, "coverage": coverage, "results": results})  # fmt: skip
@@ -456,7 +529,11 @@ async def list_assessments(_: CurrentUser, db: DbSession, asset_id: int | None =
         stmt = stmt.where(Assessment.asset_id == asset_id)
     rows = list((await db.execute(stmt)).scalars())
     results: dict[int, list[dict[str, Any]]] = {}
-    for r in (await db.execute(select(CheckResult).where(CheckResult.assessment_id.in_([a.id for a in rows] or [0])))).scalars():
+    for r in (
+        await db.execute(
+            select(CheckResult).where(CheckResult.assessment_id.in_([a.id for a in rows] or [0]))
+        )
+    ).scalars():
         results.setdefault(r.assessment_id, []).append(
             {"rule_id": r.rule_id, "rule_version": r.rule_version, "status": r.status, "summary": r.summary}
         )
@@ -519,7 +596,9 @@ async def snooze_alert(alert_id: int, body: S.SnoozeRequest, admin: AdminUser, d
 @router.post("/alerts/{alert_id}/resolve", tags=["alerts"], response_model=S.AlertOut)
 async def close_alert(alert_id: int, admin: AdminUser, db: DbSession) -> Alert:
     alert = await _alert_or_404(db, alert_id)
-    await alert_service.resolve_alert(db, alert, now=utcnow(), reason=f"closed manually by {admin.user.username}")
+    await alert_service.resolve_alert(
+        db, alert, now=utcnow(), reason=f"closed manually by {admin.user.username}"
+    )
     add_audit(db, "alert.resolve", actor_user_id=admin.user.id, actor_label=admin.user.username, target_type="alert",
               target_id=alert.id)  # fmt: skip
     return alert
@@ -531,7 +610,9 @@ async def list_alert_rules(_: CurrentUser, db: DbSession) -> list[AlertRule]:
 
 
 @router.patch("/alert-rules/{rule_id}", tags=["alerts"], response_model=S.AlertRuleOut)
-async def patch_alert_rule(rule_id: int, body: S.AlertRulePatch, admin: AdminUser, db: DbSession) -> AlertRule:
+async def patch_alert_rule(
+    rule_id: int, body: S.AlertRulePatch, admin: AdminUser, db: DbSession
+) -> AlertRule:
     rule = await db.get(AlertRule, rule_id)
     if rule is None:
         raise HTTPException(404, "rule not found")
@@ -634,7 +715,9 @@ async def create_target(body: S.ProbeTargetIn, admin: AdminUser, db: DbSession) 
 
 
 @router.patch("/probe-targets/{target_id}", tags=["connectivity"], response_model=S.ProbeTargetOut)
-async def update_target(target_id: int, body: S.ProbeTargetIn, admin: AdminUser, db: DbSession) -> ProbeTarget:
+async def update_target(
+    target_id: int, body: S.ProbeTargetIn, admin: AdminUser, db: DbSession
+) -> ProbeTarget:
     target = await db.get(ProbeTarget, target_id)
     if target is None:
         raise HTTPException(404, "probe target not found")
@@ -737,8 +820,16 @@ async def deployment_info(_: AdminUser) -> dict[str, Any]:
 
 
 @router.get("/audit", tags=["settings"], response_model=list[S.AuditOut])
-async def list_audit(_: AdminUser, db: DbSession, limit: Annotated[int, Query(ge=1, le=500)] = 100) -> list[AuditEvent]:
-    return list((await db.execute(select(AuditEvent).order_by(AuditEvent.ts.desc(), AuditEvent.id.desc()).limit(limit))).scalars())
+async def list_audit(
+    _: AdminUser, db: DbSession, limit: Annotated[int, Query(ge=1, le=500)] = 100
+) -> list[AuditEvent]:
+    return list(
+        (
+            await db.execute(
+                select(AuditEvent).order_by(AuditEvent.ts.desc(), AuditEvent.id.desc()).limit(limit)
+            )
+        ).scalars()
+    )
 
 
 @router.get("/overview", tags=["overview"], response_model=S.OverviewOut)
@@ -759,22 +850,43 @@ async def topology(_: CurrentUser, db: DbSession) -> dict[str, Any]:
 # ------------------------------------------------------------------ exports (no secrets, no tokens)
 
 
+def _csv_cell(value: Any) -> Any:
+    """Neutralise spreadsheet formula injection: hostnames and notes are attacker-influenced
+    (a device chooses its own hostname), so a leading = + - @ must not become a formula."""
+    if isinstance(value, list):
+        value = "; ".join(str(v) for v in value)
+    if value is None:
+        return ""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def _csv(rows: list[dict[str, Any]], columns: list[str]) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(columns)
     for r in rows:
-        writer.writerow(["; ".join(v) if isinstance(v := r.get(c), list) else ("" if v is None else v) for c in columns])
+        writer.writerow([_csv_cell(r.get(c)) for c in columns])
     return buf.getvalue()
 
 
 @router.get("/export/devices", tags=["export"])
 async def export_devices(admin: AdminUser, db: DbSession, format: Literal["csv", "json"] = "csv") -> Response:  # noqa: A002
-    assets = list((await db.execute(select(Asset).where(Asset.merged_into_id.is_(None)).order_by(Asset.id))).scalars())
+    assets = list(
+        (await db.execute(select(Asset).where(Asset.merged_into_id.is_(None)).order_by(Asset.id))).scalars()
+    )
     rows = [
-        {**d.model_dump(mode="json", exclude={"presence"}), "presence": d.presence.label} for d in await _device_rows(db, assets)
+        {**d.model_dump(mode="json", exclude={"presence"}), "presence": d.presence.label}
+        for d in await _device_rows(db, assets)
     ]
-    add_audit(db, "export.devices", actor_user_id=admin.user.id, actor_label=admin.user.username, details={"format": format})
+    add_audit(
+        db,
+        "export.devices",
+        actor_user_id=admin.user.id,
+        actor_label=admin.user.username,
+        details={"format": format},
+    )
     if format == "json":
         return Response(content=json.dumps(rows, indent=2), media_type="application/json",
                         headers={"Content-Disposition": 'attachment; filename="observenet-devices.json"'})  # fmt: skip
@@ -786,11 +898,19 @@ async def export_devices(admin: AdminUser, db: DbSession, format: Literal["csv",
 
 
 @router.get("/export/findings", tags=["export"])
-async def export_findings(admin: AdminUser, db: DbSession, format: Literal["csv", "json"] = "csv") -> Response:  # noqa: A002
+async def export_findings(
+    admin: AdminUser, db: DbSession, format: Literal["csv", "json"] = "csv"
+) -> Response:  # noqa: A002
     findings = list((await db.execute(select(Finding).order_by(Finding.id))).scalars())
     names = await _asset_names(db, {f.asset_id for f in findings})
     rows = [_finding_out(f, names.get(f.asset_id, "?")).model_dump(mode="json") for f in findings]
-    add_audit(db, "export.findings", actor_user_id=admin.user.id, actor_label=admin.user.username, details={"format": format})
+    add_audit(
+        db,
+        "export.findings",
+        actor_user_id=admin.user.id,
+        actor_label=admin.user.username,
+        details={"format": format},
+    )
     if format == "json":
         return Response(content=json.dumps(rows, indent=2), media_type="application/json",
                         headers={"Content-Disposition": 'attachment; filename="observenet-findings.json"'})  # fmt: skip
@@ -801,7 +921,9 @@ async def export_findings(admin: AdminUser, db: DbSession, format: Literal["csv"
 
 
 @router.get("/traffic/top-devices", tags=["metrics"])
-async def top_devices(_: CurrentUser, db: DbSession, window_s: Annotated[int, Query(ge=30, le=3600)] = 300) -> dict[str, Any]:
+async def top_devices(
+    _: CurrentUser, db: DbSession, window_s: Annotated[int, Query(ge=30, le=3600)] = 300
+) -> dict[str, Any]:
     """Top devices by traffic — only when a source provides trustworthy per-device counters.
     Without one this returns ``supported: false`` with guidance instead of an estimate."""
     now = utcnow()
@@ -817,7 +939,12 @@ async def top_devices(_: CurrentUser, db: DbSession, window_s: Annotated[int, Qu
         )
     ).all()  # fmt: skip
     if not rows:
-        return {"supported": False, "guidance": views.PER_DEVICE_GUIDANCE, "window_s": window_s, "devices": []}
+        return {
+            "supported": False,
+            "guidance": views.PER_DEVICE_GUIDANCE,
+            "window_s": window_s,
+            "devices": [],
+        }
     by_mac: dict[str, dict[str, Any]] = {}
     for label, metric, quality, source_id, avg, n, last in rows:
         d = by_mac.setdefault(label, {"mac": label, "rx_bps": 0.0, "tx_bps": 0.0, "samples": 0, "last_ts": last,
@@ -840,3 +967,19 @@ async def top_devices(_: CurrentUser, db: DbSession, window_s: Annotated[int, Qu
         d["source"] = sources.get(d.pop("source_id"))
     return {"supported": True, "window_s": window_s, "devices": devices,
             "coverage": "Per-client counters as reported by the gateway source; devices it does not account for are absent."}  # fmt: skip
+
+
+@router.get("/topology/peers/{asset_id}", tags=["overview"])
+async def topology_peers(asset_id: int, _: CurrentUser, db: DbSession) -> dict[str, Any]:
+    """Devices observed on the same subnet(s). Answered by Neo4j when the optional graph
+    profile is configured, by PostgreSQL otherwise (``backend`` says which)."""
+    from observenet.services.graph_sync import GraphUnavailable, segment_peers
+
+    if await db.get(Asset, asset_id) is None:
+        raise HTTPException(404, "device not found")
+    try:
+        return await segment_peers(db, asset_id)
+    except GraphUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - Neo4j down: say so instead of failing opaquely
+        raise HTTPException(503, f"graph backend unavailable: {type(exc).__name__}") from exc

@@ -218,7 +218,9 @@ class DevicePatch(BaseModel):
     asset_type: str | None = None
     group_name: Annotated[str, Field(max_length=80)] | None = None
     owner: Annotated[str, Field(max_length=120)] | None = None
-    tags: Annotated[list[Annotated[str, Field(min_length=1, max_length=40)]], Field(max_length=20)] | None = None
+    tags: Annotated[list[Annotated[str, Field(min_length=1, max_length=40)]], Field(max_length=20)] | None = (
+        None
+    )
     notes: Annotated[str, Field(max_length=4000)] | None = None
     favorite: bool | None = None
 

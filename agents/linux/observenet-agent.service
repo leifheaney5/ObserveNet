@@ -1,0 +1,61 @@
+# ObserveNet Linux collector — native install (alternative to the Compose `collector` service).
+#
+# NOT TESTED in the build environment (no systemd there). Review before use; if a
+# hardening directive breaks collection on your distribution, relax that one directive
+# rather than running the agent as root.
+#
+# Install:  see agents/linux/README.md
+[Unit]
+Description=ObserveNet read-only network collector
+Documentation=https://github.com/leifheaney5/ObserveNet/blob/main/agents/linux/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=observenet-agent
+Group=observenet-agent
+# OBSERVENET_URL, OBSERVENET_AGENT_TOKEN_FILE, ... (mode 0640, root:observenet-agent)
+EnvironmentFile=/etc/observenet-agent/agent.env
+Environment=OBSERVENET_AGENT_STATE_DIR=/var/lib/observenet-agent
+ExecStart=/opt/observenet-agent/venv/bin/python -m observenet_agent
+Restart=always
+RestartSec=5
+
+# /var/lib/observenet-agent, owned by the service user: stores only the random agent_uid.
+StateDirectory=observenet-agent
+StateDirectoryMode=0750
+
+# --- least privilege -------------------------------------------------------------
+NoNewPrivileges=yes
+# No capabilities by default. ICMP then relies on net.ipv4.ping_group_range including
+# this group. To use a raw ICMP socket instead, replace the two lines below with:
+#   CapabilityBoundingSet=CAP_NET_RAW
+#   AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# AF_NETLINK is needed to enumerate interfaces. Do NOT add PrivateNetwork=: the agent
+# must see the host's interfaces, neighbour cache and socket table.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

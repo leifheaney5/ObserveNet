@@ -80,11 +80,11 @@ export function ClassificationBadge({ value }: { value: string }) {
   const c = CLASSIFICATION[value] ?? { tone: "neutral" as Tone, label: titleCase(value), help: "" };
   return (
     <Tooltip content={c.help}>
-      <span tabIndex={0} className="inline-flex rounded-full">
+      <button type="button" className="inline-flex cursor-help rounded-full">
         <Badge tone={c.tone} icon={value === "VERIFIED_RESOLUTION" ? ShieldCheck : undefined}>
           {c.label}
         </Badge>
-      </span>
+      </button>
     </Tooltip>
   );
 }
@@ -115,12 +115,12 @@ const PRESENCE: Record<string, Tone> = {
 export function PresenceBadge({ presence }: { presence: { state: string; label: string; basis: string } }) {
   return (
     <Tooltip content={presence.basis}>
-      <span tabIndex={0} className="inline-flex rounded-full">
+      <button type="button" className="inline-flex cursor-help rounded-full">
         <Badge tone={PRESENCE[presence.state] ?? "neutral"}>
           <span className={cn("h-1.5 w-1.5 rounded-full bg-current")} aria-hidden />
           {presence.label}
         </Badge>
-      </span>
+      </button>
     </Tooltip>
   );
 }

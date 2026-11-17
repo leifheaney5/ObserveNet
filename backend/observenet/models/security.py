@@ -5,7 +5,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from observenet.models.base import Base

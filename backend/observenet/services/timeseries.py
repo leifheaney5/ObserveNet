@@ -61,8 +61,15 @@ async def ensure_series(
     stmt = (
         pg_insert(MetricSeries)
         .values(
-            source_id=source_id, metric=metric, label=label, unit=unit, observation_point=observation_point,
-            quality=quality, interval_s=interval_s, asset_id=asset_id, coverage=coverage,
+            source_id=source_id,
+            metric=metric,
+            label=label,
+            unit=unit,
+            observation_point=observation_point,
+            quality=quality,
+            interval_s=interval_s,
+            asset_id=asset_id,
+            coverage=coverage,
             probe_target_id=probe_target_id,
         )  # fmt: skip
         .on_conflict_do_update(
@@ -172,8 +179,14 @@ async def query_history(
     if res.name == "raw":
         b = func.date_bin(width, MetricSample.ts, origin).label("b")
         stmt = (
-            select(MetricSample.series_id, b, func.avg(MetricSample.value), func.min(MetricSample.value),
-                   func.max(MetricSample.value), func.count())  # fmt: skip
+            select(
+                MetricSample.series_id,
+                b,
+                func.avg(MetricSample.value),
+                func.min(MetricSample.value),
+                func.max(MetricSample.value),
+                func.count(),
+            )  # fmt: skip
             .where(MetricSample.series_id.in_(series_ids), MetricSample.ts >= start, MetricSample.ts < end)
             .group_by(MetricSample.series_id, b)
         )
@@ -181,8 +194,14 @@ async def query_history(
         table = MetricRollup1m if res.name == "1m" else MetricRollup1h
         b = func.date_bin(width, table.bucket, origin).label("b")
         stmt = (
-            select(table.series_id, b, func.sum(table.sum) / func.nullif(func.sum(table.count), 0),
-                   func.min(table.min), func.max(table.max), func.sum(table.count))  # fmt: skip
+            select(
+                table.series_id,
+                b,
+                func.sum(table.sum) / func.nullif(func.sum(table.count), 0),
+                func.min(table.min),
+                func.max(table.max),
+                func.sum(table.count),
+            )  # fmt: skip
             .where(table.series_id.in_(series_ids), table.bucket >= start, table.bucket < end)
             .group_by(table.series_id, b)
         )
@@ -293,7 +312,9 @@ async def ensure_partitions(session: AsyncSession, *, now: datetime, days_ahead:
     return created
 
 
-async def apply_retention(session: AsyncSession, *, now: datetime, retention: RetentionSettings) -> dict[str, int]:
+async def apply_retention(
+    session: AsyncSession, *, now: datetime, retention: RetentionSettings
+) -> dict[str, int]:
     """Bound every growing table. Raw samples are dropped a whole day-partition at a time
     (cheap, no bloat); stragglers in the default partition are deleted by range."""
     stats: dict[str, int] = {}
@@ -319,11 +340,26 @@ async def apply_retention(session: AsyncSession, *, now: datetime, retention: Re
 
     async def _delete(model: Any, column: Any, cutoff: datetime, key: str) -> None:
         res = await session.execute(delete(model).where(column < cutoff))
-        stats[key] = res.rowcount or 0
+        stats[key] = res.rowcount or 0  # type: ignore[attr-defined]
 
-    await _delete(MetricRollup1m, MetricRollup1m.bucket, now - timedelta(days=retention.rollup_1m_days), "rollup_1m_deleted")
-    await _delete(MetricRollup1h, MetricRollup1h.bucket, now - timedelta(days=retention.rollup_1h_days), "rollup_1h_deleted")
-    await _delete(ProbeResult, ProbeResult.ts, now - timedelta(hours=retention.probe_results_hours), "probe_results_deleted")
+    await _delete(
+        MetricRollup1m,
+        MetricRollup1m.bucket,
+        now - timedelta(days=retention.rollup_1m_days),
+        "rollup_1m_deleted",
+    )
+    await _delete(
+        MetricRollup1h,
+        MetricRollup1h.bucket,
+        now - timedelta(days=retention.rollup_1h_days),
+        "rollup_1h_deleted",
+    )
+    await _delete(
+        ProbeResult,
+        ProbeResult.ts,
+        now - timedelta(hours=retention.probe_results_hours),
+        "probe_results_deleted",
+    )
     await _delete(CollectorHeartbeat, CollectorHeartbeat.ts, raw_cutoff, "heartbeats_deleted")
     await _delete(IngestBatch, IngestBatch.received_at, raw_cutoff, "ingest_batches_deleted")
     await _delete(Event, Event.ts, now - timedelta(days=retention.events_days), "events_deleted")

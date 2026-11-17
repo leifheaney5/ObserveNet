@@ -1,0 +1,25 @@
+# Example for a LOCALLY MANAGED Cloudflare Tunnel (mode B in README.md).
+# Not used by the default Compose "tunnel" profile, which runs a token-based tunnel
+# whose ingress is configured in the Zero Trust dashboard.
+#
+# Not deployed / not tested. Replace the UUID, keep the credentials file private.
+
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /etc/cloudflared/00000000-0000-0000-0000-000000000000.json
+
+# cloudflared's own metrics stay inside the container.
+metrics: 127.0.0.1:2000
+no-autoupdate: true
+
+ingress:
+  # The only published hostname. Protect it with a Cloudflare Access application
+  # BEFORE creating the DNS route.
+  - hostname: observenet.leafslab.com
+    service: http://web:8080
+    originRequest:
+      connectTimeout: 10s
+      # Keep idle WebSocket connections (live dashboard stream) open.
+      keepAliveTimeout: 90s
+      noTLSVerify: false
+  # Everything else is refused at the edge of the tunnel.
+  - service: http_status:404

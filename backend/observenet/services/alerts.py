@@ -88,7 +88,13 @@ class KeyState:
     @classmethod
     def from_json(cls, data: dict[str, Any] | None) -> KeyState:
         data = data or {}
-        return cls(**{k: (datetime.fromisoformat(v) if v else None) for k, v in data.items() if k in cls.__annotations__})
+        return cls(
+            **{
+                k: (datetime.fromisoformat(v) if v else None)
+                for k, v in data.items()
+                if k in cls.__annotations__
+            }
+        )
 
 
 def step(
@@ -159,7 +165,9 @@ async def ensure_default_rules(session: AsyncSession) -> None:
 async def in_maintenance(session: AsyncSession, kind: str, now: datetime) -> bool:
     windows = (
         await session.execute(
-            select(MaintenanceWindow).where(MaintenanceWindow.starts_at <= now, MaintenanceWindow.ends_at > now)
+            select(MaintenanceWindow).where(
+                MaintenanceWindow.starts_at <= now, MaintenanceWindow.ends_at > now
+            )
         )
     ).scalars()
     return any(not w.alert_kinds or kind in w.alert_kinds for w in windows)
@@ -214,7 +222,16 @@ async def resolve_alert(session: AsyncSession, alert: Alert, *, now: datetime, r
     add_event(session, "alert.resolved", f"Resolved: {alert.title}", asset_id=alert.asset_id,
               source_id=alert.source_id, alert_id=alert.id, data={"reason": reason}, is_demo=alert.is_demo)  # fmt: skip
     ALERT_TRANSITIONS.labels(kind=alert.kind, to="resolved").inc()
-    await _publish({"type": "alert", "event": "resolved", "id": alert.id, "kind": alert.kind, "title": alert.title, "ts": now})
+    await _publish(
+        {
+            "type": "alert",
+            "event": "resolved",
+            "id": alert.id,
+            "kind": alert.kind,
+            "title": alert.title,
+            "ts": now,
+        }
+    )
 
 
 async def raise_event_alert(session: AsyncSession, kind: str, cond: Condition, *, now: datetime,
@@ -233,7 +250,9 @@ async def _latency_conditions(session: AsyncSession, rule: AlertRule, now: datet
     p = rule.params
     out = []
     targets = (
-        await session.execute(select(ProbeTarget).where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True)))
+        await session.execute(
+            select(ProbeTarget).where(ProbeTarget.scope == "gateway", ProbeTarget.enabled.is_(True))
+        )
     ).scalars()
     for t in targets:
         pts = await load_points(session, target_id=t.id, since=now - timedelta(seconds=p["window_s"]))
@@ -245,8 +264,8 @@ async def _latency_conditions(session: AsyncSession, rule: AlertRule, now: datet
             known = enough and value is not None
             out.append(Condition(
                 dedup_key=f"gateway_latency_high:{t.id}",
-                breached=(value > p["threshold_ms"]) if known else None,  # type: ignore[operator]
-                cleared=(value < p["clear_threshold_ms"]) if known else None,  # type: ignore[operator]
+                breached=(value > p["threshold_ms"]) if known else None,
+                cleared=(value < p["clear_threshold_ms"]) if known else None,
                 title=f"Gateway latency high ({t.name})",
                 summary=(f"Average round-trip time {value:.1f} ms over the last {p['window_s']} s "
                          f"({stats.sample_size} probes) exceeds {p['threshold_ms']} ms.") if known else "insufficient data",
@@ -258,8 +277,8 @@ async def _latency_conditions(session: AsyncSession, rule: AlertRule, now: datet
             known = enough and value is not None
             out.append(Condition(
                 dedup_key=f"packet_loss_high:{t.id}",
-                breached=(value > p["threshold_pct"]) if known else None,  # type: ignore[operator]
-                cleared=(value < p["clear_threshold_pct"]) if known else None,  # type: ignore[operator]
+                breached=(value > p["threshold_pct"]) if known else None,
+                cleared=(value < p["clear_threshold_pct"]) if known else None,
                 title=f"Gateway packet loss ({t.name})",
                 summary=(f"{value:.1f}% of {stats.sample_size} gateway probes in the last {p['window_s']} s went "
                          f"unanswered (threshold {p['threshold_pct']}%). An ICMP-filtering gateway looks the same.")
@@ -274,8 +293,11 @@ async def _heartbeat_conditions(session: AsyncSession, rule: AlertRule, now: dat
     out = []
     sources = (
         await session.execute(
-            select(DataSource).where(DataSource.enabled.is_(True), DataSource.last_seen_at.is_not(None),
-                                     DataSource.kind.in_(("linux_agent", "windows_agent", "demo")))  # fmt: skip
+            select(DataSource).where(
+                DataSource.enabled.is_(True),
+                DataSource.last_seen_at.is_not(None),
+                DataSource.kind.in_(("linux_agent", "windows_agent", "demo")),
+            )  # fmt: skip
         )
     ).scalars()
     for s in sources:
@@ -299,8 +321,10 @@ async def _bandwidth_conditions(session: AsyncSession, rule: AlertRule, now: dat
         await session.execute(
             select(MetricSeries, func.avg(MetricSample.value), func.count(), func.max(MetricSample.ts))
             .join(MetricSample, MetricSample.series_id == MetricSeries.id)
-            .where(MetricSeries.metric.in_(("net.rx_bps", "net.tx_bps", "wan.rx_bps", "wan.tx_bps")),
-                   MetricSample.ts > since)  # fmt: skip
+            .where(
+                MetricSeries.metric.in_(("net.rx_bps", "net.tx_bps", "wan.rx_bps", "wan.tx_bps")),
+                MetricSample.ts > since,
+            )  # fmt: skip
             .group_by(MetricSeries.id)
         )
     ).all()
@@ -326,8 +350,10 @@ async def _stale_source_conditions(session: AsyncSession, rule: AlertRule, now: 
     for s in sources:
         hb = (
             await session.execute(
-                select(CollectorHeartbeat).where(CollectorHeartbeat.source_id == s.id)
-                .order_by(CollectorHeartbeat.ts.desc()).limit(1)  # fmt: skip
+                select(CollectorHeartbeat)
+                .where(CollectorHeartbeat.source_id == s.id)
+                .order_by(CollectorHeartbeat.ts.desc())
+                .limit(1)  # fmt: skip
             )
         ).scalar_one_or_none()
         if hb is None or (now - hb.ts).total_seconds() > 60:
@@ -362,8 +388,11 @@ async def evaluate_rules(session: AsyncSession, *, now: datetime) -> dict[str, i
             if hours:
                 old = (
                     await session.execute(
-                        select(Alert).where(Alert.kind == rule.kind, Alert.state != "resolved",
-                                            Alert.started_at < now - timedelta(hours=hours))  # fmt: skip
+                        select(Alert).where(
+                            Alert.kind == rule.kind,
+                            Alert.state != "resolved",
+                            Alert.started_at < now - timedelta(hours=hours),
+                        )  # fmt: skip
                     )
                 ).scalars()
                 for alert in old:

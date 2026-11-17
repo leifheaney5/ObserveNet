@@ -54,7 +54,7 @@ async def ready(response: Response) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         checks["database"] = f"error: {type(exc).__name__}"
     try:
-        await get_redis().ping()  # type: ignore[misc]
+        await get_redis().ping()
         checks["redis"] = "ok"
     except Exception as exc:  # noqa: BLE001
         checks["redis"] = f"error: {type(exc).__name__}"
@@ -88,16 +88,16 @@ async def service_status(_: CurrentUser, db: DbSession) -> S.StatusOut:
     queues: dict[str, int | None] = {INGEST_QUEUE: None, MAINT_QUEUE: None}
     try:
         redis = get_redis()
-        await redis.ping()  # type: ignore[misc]
+        await redis.ping()
         components.append({"name": "Redis", "state": "ok", "detail": "reachable"})
         for q in queues:
-            queues[q] = int(await redis.llen(f"observenet:{q}"))  # type: ignore[misc]
+            queues[q] = int(await redis.llen(f"observenet:{q}"))
         for name, label, limit in (("worker", "Worker", 45), ("scheduler", "Scheduler", 15)):
             raw = await redis.get(WORKER_HEARTBEAT_KEY.format(name=name))
             if raw is None:
                 components.append({"name": label, "state": "down", "detail": "no heartbeat"})
             else:
-                age = (now - datetime.fromisoformat(raw)).total_seconds()
+                age = (now - datetime.fromisoformat(str(raw))).total_seconds()
                 components.append({"name": label, "state": "ok" if age < limit else "degraded",
                                    "detail": f"heartbeat {int(age)} s ago"})  # fmt: skip
     except Exception as exc:  # noqa: BLE001
@@ -106,7 +106,9 @@ async def service_status(_: CurrentUser, db: DbSession) -> S.StatusOut:
                        "detail": f"{len(hub.clients)} client(s)"})  # fmt: skip
     backlog = queues.get(INGEST_QUEUE)
     if backlog is not None and backlog > 100:
-        components.append({"name": "Ingest queue", "state": "degraded", "detail": f"{backlog} batches waiting"})
+        components.append(
+            {"name": "Ingest queue", "state": "degraded", "detail": f"{backlog} batches waiting"}
+        )
     return S.StatusOut(version=__version__, demo_mode=get_config().demo_mode, components=components,
                        queues=queues, ws_clients=len(hub.clients))  # fmt: skip
 
@@ -114,7 +116,11 @@ async def service_status(_: CurrentUser, db: DbSession) -> S.StatusOut:
 @router.get("/capabilities", tags=["sources"], response_model=S.CapabilitiesOut)
 async def capabilities(_: CurrentUser, db: DbSession) -> S.CapabilitiesOut:
     now = utcnow()
-    has_import = (await db.execute(select(func.count()).select_from(DataSource).where(DataSource.kind == "client_import"))).scalar_one()
+    has_import = (
+        await db.execute(
+            select(func.count()).select_from(DataSource).where(DataSource.kind == "client_import")
+        )
+    ).scalar_one()
     provider = NullRouterProvider()
     return S.CapabilitiesOut(
         generated_at=now, demo_mode=get_config().demo_mode, network=await views.network_capabilities(db, now),
@@ -195,7 +201,9 @@ async def change_password(body: S.PasswordChange, principal: CurrentUser, db: Db
     for sess in (await db.execute(select(Session).where(Session.user_id == principal.user.id, Session.id != principal.session_id,
                                                         Session.revoked_at.is_(None)))).scalars():  # fmt: skip
         sess.revoked_at = utcnow()
-    add_audit(db, "auth.password_changed", actor_user_id=principal.user.id, actor_label=principal.user.username)
+    add_audit(
+        db, "auth.password_changed", actor_user_id=principal.user.id, actor_label=principal.user.username
+    )
 
 
 @router.get("/users", tags=["auth"], response_model=list[S.UserOut])
@@ -225,7 +233,11 @@ async def patch_user(user_id: int, body: S.UserPatch, admin: AdminUser, db: DbSe
         raise HTTPException(404, "user not found")
     demoting = (body.role == "viewer" or body.disabled) and user.role == "admin"
     if demoting:
-        admins = (await db.execute(select(func.count()).select_from(User).where(User.role == "admin", User.disabled.is_(False)))).scalar_one()
+        admins = (
+            await db.execute(
+                select(func.count()).select_from(User).where(User.role == "admin", User.disabled.is_(False))
+            )
+        ).scalar_one()
         if admins <= 1:
             raise HTTPException(409, "cannot remove the last active administrator")
     if body.role is not None:
@@ -235,7 +247,9 @@ async def patch_user(user_id: int, body: S.UserPatch, admin: AdminUser, db: DbSe
     if body.password is not None:
         user.password_hash = hash_password(body.password)
     if body.disabled or body.password is not None:
-        for sess in (await db.execute(select(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)))).scalars():
+        for sess in (
+            await db.execute(select(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)))
+        ).scalars():
             sess.revoked_at = utcnow()
     add_audit(db, "user.update", actor_user_id=admin.user.id, actor_label=admin.user.username, target_type="user",
               target_id=user.id, details=body.model_dump(exclude={"password"}, exclude_none=True))  # fmt: skip
@@ -299,14 +313,22 @@ async def test_source(source_id: int, admin: AdminUser, db: DbSession) -> S.Sour
     series = (await db.execute(select(func.count()).select_from(MetricSeries).where(
         MetricSeries.source_id == source.id, MetricSeries.last_ts > now - timedelta(minutes=2)))).scalar_one()  # fmt: skip
     if source.kind in ("linux_agent", "windows_agent", "demo"):
-        checks.append({"name": "active_series", "ok": series > 0, "detail": f"{series} metric series updated in the last 2 min."})
+        checks.append(
+            {
+                "name": "active_series",
+                "ok": series > 0,
+                "detail": f"{series} metric series updated in the last 2 min.",
+            }
+        )
         source.posture_requested_at = now
         note = "A fresh posture snapshot was requested; it arrives on the agent's next config poll (≤ 10 s)."
     else:
         note = "Imported sources are point-in-time; re-import to refresh."
     add_audit(db, "source.test", actor_user_id=admin.user.id, actor_label=admin.user.username, target_type="source",
               target_id=source.id)  # fmt: skip
-    return S.SourceTestOut(source_id=source.id, ok=all(c["ok"] for c in checks), freshness=state, checks=checks, note=note)
+    return S.SourceTestOut(
+        source_id=source.id, ok=all(c["ok"] for c in checks), freshness=state, checks=checks, note=note
+    )
 
 
 @router.get("/tokens", tags=["sources"], response_model=list[S.TokenOut])
@@ -349,7 +371,9 @@ async def ingest_agent(payload: IngestPayload, token: AgentToken, db: DbSession)
         INGEST_BATCHES.labels(outcome="rate_limited").inc()
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "ingest rate limit exceeded")
     try:
-        accepted = await ingest_service.accept(db, get_redis(), token=token, payload=payload, enqueue=_enqueue)
+        accepted = await ingest_service.accept(
+            db, get_redis(), token=token, payload=payload, enqueue=_enqueue
+        )
     except ingest_service.IngestRejected as exc:
         INGEST_BATCHES.labels(outcome=f"rejected_{exc.status_code}").inc()
         raise HTTPException(exc.status_code, exc.detail) from exc
@@ -363,8 +387,13 @@ async def agent_config(token: AgentToken, db: DbSession) -> AgentConfig:
     settings = await get_runtime_settings(db)
     source = await db.get(DataSource, token.source_id) if token.source_id else None
     targets = list(
-        (await db.execute(select(ProbeTarget).where(ProbeTarget.enabled.is_(True), ProbeTarget.is_demo.is_(False))
-                          .order_by(ProbeTarget.id))).scalars()  # fmt: skip
+        (
+            await db.execute(
+                select(ProbeTarget)
+                .where(ProbeTarget.enabled.is_(True), ProbeTarget.is_demo.is_(False))
+                .order_by(ProbeTarget.id)
+            )
+        ).scalars()  # fmt: skip
     )
     probes = [AgentProbeConfig(target_id=t.id, kind=t.kind, host=t.host, port=t.port, interval_s=t.interval_s,
                                timeout_ms=t.timeout_ms) for t in targets]  # fmt: skip
@@ -438,7 +467,9 @@ async def metrics_history(
         stmt = stmt.where(MetricSeries.asset_id == asset_id)
     series = list((await db.execute(stmt)).scalars())
     try:
-        res, points = await timeseries.query_history(db, series_ids=[s.id for s in series], start=start, end=end, bucket_s=bucket)
+        res, points = await timeseries.query_history(
+            db, series_ids=[s.id for s in series], start=start, end=end, bucket_s=bucket
+        )
     except timeseries.HistoryQueryError as exc:
         raise HTTPException(422, str(exc)) from exc
     settings = await get_runtime_settings(db)
@@ -448,7 +479,7 @@ async def metrics_history(
     if not series:
         note = "No series matches this metric/filter. Nothing has been measured for it."
     return S.HistoryOut(
-        metric=metric, start=start, end=end, bucket_s=res.bucket_s, resolution=res.name,  # type: ignore[arg-type]
+        metric=metric, start=start, end=end, bucket_s=res.bucket_s, resolution=res.name,
         series=[S.HistorySeries(series=S.SeriesOut.model_validate(s), points=[S.HistoryPoint(**p) for p in points[s.id]])
                 for s in series], note=note,
     )  # fmt: skip
@@ -504,5 +535,7 @@ async def stream(ws: WebSocket) -> None:
         for t in (watcher, reader, server):
             t.cancel()
         with contextlib.suppress(Exception):
-            await ws.close(code=4408 if client.dropped else 1000, reason="slow consumer" if client.dropped else "")
+            await ws.close(
+                code=4408 if client.dropped else 1000, reason="slow consumer" if client.dropped else ""
+            )
     _ = WebSocketDisconnect

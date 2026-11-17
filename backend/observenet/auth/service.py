@@ -82,7 +82,9 @@ async def authenticate(session: AsyncSession, username: str, password: str) -> U
     return user
 
 
-async def create_session(session: AsyncSession, user: User, *, ip: str | None, user_agent: str | None) -> tuple[str, Session]:
+async def create_session(
+    session: AsyncSession, user: User, *, ip: str | None, user_agent: str | None
+) -> tuple[str, Session]:
     raw = new_secret(32)
     row = Session(
         user_id=user.id, token_hash=token_digest(raw), csrf_token=new_secret(24),
@@ -99,7 +101,9 @@ async def resolve_session(session: AsyncSession, raw_token: str | None) -> tuple
         return None
     row = (
         await session.execute(
-            select(Session, User).join(User, User.id == Session.user_id).where(Session.token_hash == token_digest(raw_token))
+            select(Session, User)
+            .join(User, User.id == Session.user_id)
+            .where(Session.token_hash == token_digest(raw_token))
         )
     ).first()
     if row is None:
@@ -140,7 +144,9 @@ async def ensure_bootstrap_agent_token(session: AsyncSession) -> None:
                                 ttl_days=None, is_bootstrap=True, raw=raw)  # fmt: skip
 
 
-async def resolve_agent_token(session: AsyncSession, raw: str | None, *, scope: str = "ingest") -> ApiToken | None:
+async def resolve_agent_token(
+    session: AsyncSession, raw: str | None, *, scope: str = "ingest"
+) -> ApiToken | None:
     if not raw:
         return None
     token = (

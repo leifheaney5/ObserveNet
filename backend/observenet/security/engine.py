@@ -119,7 +119,10 @@ def _complete_run(
     after_data = after.data if after else {}
     session.add(
         VerificationDiff(
-            verification_run_id=run.id, summary=reason, before=before_data, after=after_data,
+            verification_run_id=run.id,
+            summary=reason,
+            before=before_data,
+            after=after_data,
             changes=diff_evidence(before_data, after_data) if after else [],
         )  # fmt: skip
     )
@@ -153,7 +156,9 @@ async def _open_finding(
     session.add(_new_evidence(finding, kind="initial", observed=True, snapshot=snapshot, assessment=assessment,
                               method=method, summary=v.observation, data=v.evidence))  # fmt: skip
     for pos, (instruction, command) in enumerate(v.remediation, start=1):
-        session.add(RemediationStep(finding_id=finding.id, position=pos, instruction=instruction, command=command))
+        session.add(
+            RemediationStep(finding_id=finding.id, position=pos, instruction=instruction, command=command)
+        )
     add_event(session, "finding.opened", f"{v.title} on {asset.display_name or asset.hostname or f'device #{asset.id}'}",
               severity="warning", asset_id=asset.id, source_id=source.id, finding_id=finding.id,
               data={"rule_id": meta.rule_id, "severity": v.severity}, is_demo=source.is_demo)  # fmt: skip
@@ -189,8 +194,12 @@ async def assess(
         counts[outcome.status] += 1
         session.add(
             CheckResult(
-                assessment_id=assessment.id, rule_id=rule.meta.rule_id, rule_version=rule.meta.version,
-                status=outcome.status, summary=outcome.summary, failing_subjects=len(outcome.violations),
+                assessment_id=assessment.id,
+                rule_id=rule.meta.rule_id,
+                rule_version=rule.meta.version,
+                status=outcome.status,
+                summary=outcome.summary,
+                failing_subjects=len(outcome.violations),
             )  # fmt: skip
         )
         o, r = await _apply_outcome(session, rule.meta, outcome, asset=asset, source=source,
@@ -212,7 +221,9 @@ async def _apply_outcome(
     existing = {
         f.subject: f
         for f in (
-            await session.execute(select(Finding).where(Finding.asset_id == asset.id, Finding.rule_id == meta.rule_id))
+            await session.execute(
+                select(Finding).where(Finding.asset_id == asset.id, Finding.rule_id == meta.rule_id)
+            )
         ).scalars()
     }
     conclusive = outcome.status in ("pass", "fail")
@@ -227,7 +238,9 @@ async def _apply_outcome(
             continue
 
         before = await _latest_observed_evidence(session, finding.id)
-        pending = [r for r in await _pending_runs(session, finding.id) if snapshot.collected_at > r.requested_at]
+        pending = [
+            r for r in await _pending_runs(session, finding.id) if snapshot.collected_at > r.requested_at
+        ]
         reopened = finding.status in ("resolved", "closed_unverified")
         changed = before is None or digest(before.data) != digest(v.evidence)
         evidence: FindingEvidence | None = None
@@ -260,7 +273,12 @@ async def _apply_outcome(
     for subject, finding in existing.items():
         if subject in violating or finding.status == "resolved":
             continue
-        pending = [r for r in await _pending_runs(session, finding.id) if snapshot.collected_at > r.requested_at]
+        waiting = await _pending_runs(session, finding.id)
+        pending = [r for r in waiting if snapshot.collected_at > r.requested_at]
+        if waiting and not pending:
+            # A manual re-check is waiting for evidence collected *after* the request. A snapshot
+            # taken at or before it (e.g. one already in flight) must not decide the outcome.
+            continue
         if not conclusive:
             # The rule could not read its input: we cannot say anything about this finding.
             for run in pending:
@@ -287,7 +305,9 @@ async def _apply_outcome(
             await session.flush()
             pending = [run]
         for run in pending:
-            _complete_run(session, run, outcome="resolved", reason=reason, before=before, after=after, now=now)
+            _complete_run(
+                session, run, outcome="resolved", reason=reason, before=before, after=after, now=now
+            )
         finding.status = "resolved"
         finding.classification = "VERIFIED_RESOLUTION"
         finding.verification_status = "resolved"
@@ -327,7 +347,9 @@ async def expire_verification_runs(session: AsyncSession, now: datetime | None =
     runs = list(
         (
             await session.execute(
-                select(VerificationRun).where(VerificationRun.status == "pending", VerificationRun.deadline_at < now)
+                select(VerificationRun).where(
+                    VerificationRun.status == "pending", VerificationRun.deadline_at < now
+                )
             )
         ).scalars()
     )
@@ -343,7 +365,9 @@ async def expire_verification_runs(session: AsyncSession, now: datetime | None =
     return len(runs)
 
 
-async def evaluate_agent_staleness(session: AsyncSession, *, disconnected_after_s: int, now: datetime | None = None) -> None:
+async def evaluate_agent_staleness(
+    session: AsyncSession, *, disconnected_after_s: int, now: datetime | None = None
+) -> None:
     """OBS-STALE-001: an agent that used to report has gone silent (observability finding)."""
     now = now or utcnow()
     sources = (
@@ -363,7 +387,9 @@ async def evaluate_agent_staleness(session: AsyncSession, *, disconnected_after_
         finding = (
             await session.execute(
                 select(Finding).where(
-                    Finding.asset_id == source.asset_id, Finding.rule_id == STALE_RULE.rule_id, Finding.subject == subject
+                    Finding.asset_id == source.asset_id,
+                    Finding.rule_id == STALE_RULE.rule_id,
+                    Finding.subject == subject,
                 )
             )
         ).scalar_one_or_none()

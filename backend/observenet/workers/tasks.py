@@ -57,7 +57,9 @@ def instrumented(name: str) -> Callable[[Callable[P, Awaitable[R]]], Callable[P,
     return deco
 
 
-@dramatiq.actor(queue_name=INGEST_QUEUE, max_retries=8, min_backoff=500, max_backoff=30_000, time_limit=30_000)
+@dramatiq.actor(
+    queue_name=INGEST_QUEUE, max_retries=8, min_backoff=500, max_backoff=30_000, time_limit=30_000
+)
 @instrumented("process_ingest")
 async def process_ingest(source_id: int, payload: dict[str, Any], received_at: str) -> None:
     parsed = IngestPayload.model_validate(payload)
@@ -97,14 +99,22 @@ async def evaluate() -> None:
     async with session_scope() as session:
         settings = await get_runtime_settings(session)
         await engine.expire_verification_runs(session, now)
-        await engine.evaluate_agent_staleness(session, disconnected_after_s=settings.freshness.disconnected_after_s, now=now)
+        await engine.evaluate_agent_staleness(
+            session, disconnected_after_s=settings.freshness.disconnected_after_s, now=now
+        )
     async with session_scope() as session:
         await alert_service.evaluate_rules(session, now=now)
     async with session_scope() as session:
         status = await internet_status(session, now=now)
         open_outage = (
-            await session.execute(select(Outage).where(Outage.ended_at.is_(None)).order_by(Outage.started_at.desc()))
-        ).scalars().first()
+            (
+                await session.execute(
+                    select(Outage).where(Outage.ended_at.is_(None)).order_by(Outage.started_at.desc())
+                )
+            )
+            .scalars()
+            .first()
+        )
         if status.status == "unreachable" and open_outage is None:
             session.add(Outage(kind="internet", started_at=now, evidence={"reason": status.reason,
                                                                           "signals": status.signals_total}))  # fmt: skip
@@ -129,7 +139,9 @@ async def send_webhook(alert_id: int, event: str) -> None:
                            "started_at": alert.started_at.isoformat()}).encode()  # fmt: skip
     headers = {"Content-Type": "application/json", "User-Agent": "ObserveNet"}
     if cfg.alert_webhook_secret:
-        headers["X-ObserveNet-Signature"] = hmac.new(cfg.alert_webhook_secret.encode(), body, hashlib.sha256).hexdigest()
+        headers["X-ObserveNet-Signature"] = hmac.new(
+            cfg.alert_webhook_secret.encode(), body, hashlib.sha256
+        ).hexdigest()
     async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
         (await client.post(cfg.alert_webhook_url, content=body, headers=headers)).raise_for_status()
 

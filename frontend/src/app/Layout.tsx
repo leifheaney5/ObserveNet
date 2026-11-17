@@ -50,7 +50,7 @@ export function PeriodSelector() {
           aria-pressed={period.key === p.key}
           onClick={() => setPeriod(p.key)}
           className={cn(
-            "rounded-md px-2 py-1 text-xs transition-colors",
+            "rounded-md px-1.5 py-1 text-xs transition-colors sm:px-2",
             period.key === p.key ? "bg-accent/15 font-medium text-accent" : "text-muted hover:text-ink",
           )}
         >
@@ -138,12 +138,12 @@ export function Layout({ children }: { children: ReactNode }) {
         </aside>
         {open && <button type="button" aria-label="Close navigation" className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur lg:px-6">
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-line bg-bg/80 px-3 backdrop-blur sm:gap-3 sm:px-4 lg:px-6">
             <button type="button" className="rounded-md p-1.5 text-muted hover:bg-raised lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </button>
-            <div className="lg:hidden">
+            <div className="hidden sm:block lg:hidden">
               <Logo withText={false} size={24} />
             </div>
             <div className="flex-1" />

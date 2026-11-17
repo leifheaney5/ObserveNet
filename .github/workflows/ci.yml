@@ -1,0 +1,212 @@
+# ObserveNet CI
+#
+# NOTE: this workflow was written alongside the code but has NOT been executed on
+# GitHub Actions yet. Treat the first run as its own test.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+
+jobs:
+  backend:
+    name: Backend (lint, types, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: observenet_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      OBSERVENET_ENV: test
+      OBSERVENET_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789
+      OBSERVENET_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/observenet_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install dependencies
+        run: uv sync --locked --all-extras
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format check
+        run: uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy observenet
+      - name: Migrations apply to an empty database
+        env:
+          PGPASSWORD: postgres
+          OBSERVENET_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/observenet_migrate
+        run: |
+          psql -h localhost -U postgres -c 'CREATE DATABASE observenet_migrate'
+          uv run alembic upgrade head
+      - name: Tests
+        run: uv run pytest
+
+  agent:
+    name: Linux agent (lint, types, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agents/linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: agents/linux/uv.lock
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format check
+        run: uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy observenet_agent
+      - name: Tests
+        run: uv run pytest
+
+  frontend:
+    name: Frontend (lint, types, unit tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate .env (random secrets, never committed)
+        run: make init
+      - name: Compose file is valid
+        run: docker compose config --quiet
+      - name: Build all images (default profiles, including the collector)
+        run: docker compose build
+
+  e2e:
+    name: End-to-end smoke (demo stack + Playwright)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate .env and switch it to demo mode (synthetic data, no collector)
+        run: |
+          make init
+          sed -i -e '/^OBSERVENET_DEMO_MODE=/d' -e '/^COMPOSE_PROFILES=/d' .env
+          printf 'OBSERVENET_DEMO_MODE=true\nCOMPOSE_PROFILES=\n' >> .env
+      - name: Start the stack
+        run: docker compose up --build -d
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/v1/ready >/dev/null; then
+              echo "ready after ${i} attempts"; exit 0
+            fi
+            sleep 3
+          done
+          echo "stack did not become ready"; exit 1
+      - name: Unauthenticated data access is refused
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/devices)
+          test "$code" = "401"
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Playwright smoke test
+        working-directory: frontend
+        run: |
+          export E2E_BASE_URL=http://127.0.0.1:8080
+          export E2E_USERNAME=admin
+          export E2E_PASSWORD="$(grep '^OBSERVENET_ADMIN_PASSWORD=' ../.env | cut -d= -f2-)"
+          npm run e2e
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose logs --no-color > compose-logs.txt
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            compose-logs.txt
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  security:
+    name: Dependency audit (advisory)
+    runs-on: ubuntu-latest
+    # Advisory on purpose: a newly published advisory in a transitive dependency should
+    # be visible on every run without blocking unrelated changes. Review the output;
+    # these steps do not fail the workflow.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: pip-audit (backend, locked runtime dependencies)
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements-txt -o /tmp/backend-requirements.txt
+          uvx pip-audit --require-hashes --disable-pip -r /tmp/backend-requirements.txt
+      - name: pip-audit (Linux agent, locked runtime dependencies)
+        continue-on-error: true
+        working-directory: agents/linux
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements-txt -o /tmp/agent-requirements.txt
+          uvx pip-audit --require-hashes --disable-pip -r /tmp/agent-requirements.txt
+      - name: npm audit (frontend, high and above)
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --audit-level=high

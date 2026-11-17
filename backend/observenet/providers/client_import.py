@@ -65,13 +65,17 @@ def parse_client_list(content: str, observed_at: datetime) -> tuple[list[ClientR
         reader = csv.DictReader(io.StringIO(content))
         if not reader.fieldnames:
             raise ImportError_("CSV needs a header row (ip, mac, hostname)")
-        rows = list(reader)  # type: ignore[arg-type]
+        rows = [dict(r) for r in reader]
     if len(rows) > MAX_ROWS:
         raise ImportError_(f"too many rows ({len(rows)}); the limit is {MAX_ROWS}")
 
     records, errors = [], []
     for n, row in enumerate(rows, start=1):
-        ip, mac, name = _pick(row, _IP_KEYS), identity.normalize_mac(_pick(row, _MAC_KEYS)), _pick(row, _NAME_KEYS)
+        ip, mac, name = (
+            _pick(row, _IP_KEYS),
+            identity.normalize_mac(_pick(row, _MAC_KEYS)),
+            _pick(row, _NAME_KEYS),
+        )
         if not ip:
             errors.append(f"row {n}: no IP address column found")
             continue
@@ -83,7 +87,11 @@ def parse_client_list(content: str, observed_at: datetime) -> tuple[list[ClientR
         if not addr.is_private or addr.is_loopback or addr.is_link_local:
             errors.append(f"row {n}: {ip} is not a private LAN address; skipped")
             continue
-        records.append(ClientRecord(ip=str(addr), mac=mac, hostname=(name or None) and name[:255], observed_at=observed_at))
+        records.append(
+            ClientRecord(
+                ip=str(addr), mac=mac, hostname=(name or None) and name[:255], observed_at=observed_at
+            )
+        )
     return records, errors
 
 
@@ -100,7 +108,9 @@ class ClientListImportProvider(RouterTelemetryProvider):
             "Devices the router listed at export time. Not live; re-import to refresh.",
         )  # fmt: skip
         rest = [
-            CapabilityReport(c, "unsupported", "A static client list carries no counters, signal or settings.")
+            CapabilityReport(
+                c, "unsupported", "A static client list carries no counters, signal or settings."
+            )
             for c in RouterCapability
             if c != RouterCapability.DEVICE_INVENTORY
         ]
@@ -110,8 +120,14 @@ class ClientListImportProvider(RouterTelemetryProvider):
         return self._records
 
 
-async def apply_import(session: AsyncSession, provider: RouterTelemetryProvider, *, now: datetime, is_demo: bool = False) -> dict[str, int]:
-    source = (await session.execute(select(DataSource).where(DataSource.kind == "client_import"))).scalars().first()
+async def apply_import(
+    session: AsyncSession, provider: RouterTelemetryProvider, *, now: datetime, is_demo: bool = False
+) -> dict[str, int]:
+    source = (
+        (await session.execute(select(DataSource).where(DataSource.kind == "client_import")))
+        .scalars()
+        .first()
+    )
     if source is None:
         source = DataSource(kind="client_import", name="Imported router client list", observation_point="gateway",
                             expected_interval_s=86400, is_demo=is_demo)  # fmt: skip

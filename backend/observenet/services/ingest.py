@@ -12,7 +12,7 @@ import ipaddress
 import json
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from redis.asyncio import Redis
 from sqlalchemy import select, text, update
@@ -51,13 +51,25 @@ from observenet.security import engine
 from observenet.services import alerts as alert_service
 from observenet.services import identity
 from observenet.services.events import add_event
-from observenet.services.netscope import is_private_lan
 from observenet.services.settings import RuntimeSettings, get_runtime_settings
 from observenet.services.timeseries import ensure_series, insert_samples
 
 MAX_FUTURE_SKEW = timedelta(seconds=120)
 MAX_SAMPLE_AGE = timedelta(hours=24)
-VIRTUAL_IFACE_PREFIXES = ("lo", "docker", "br-", "veth", "virbr", "tun", "tap", "wg", "tailscale", "zt", "ifb", "dummy")
+VIRTUAL_IFACE_PREFIXES = (
+    "lo",
+    "docker",
+    "br-",
+    "veth",
+    "virbr",
+    "tun",
+    "tap",
+    "wg",
+    "tailscale",
+    "zt",
+    "ifb",
+    "dummy",
+)
 COVERAGE = {
     "host_nic": "Traffic through this host's own interface only — not network-wide and not per-device.",
     "gateway_wan": "All traffic crossing the gateway's WAN interface, as counted by the gateway.",
@@ -85,14 +97,20 @@ def derive_probe_samples(payload: IngestPayload) -> list[Sample]:
     bucket is ``(1 - avg) * 100`` with ``count`` as the sample size.
     """
     out: list[Sample] = []
+    # Probe results of a DEMO_MODE generator are synthetic too: never let them read as measured.
+    demo = payload.agent.platform == "demo"
+    measured: Literal["measured", "synthetic"] = "synthetic" if demo else "measured"
+    derived: Literal["derived", "synthetic"] = "synthetic" if demo else "derived"
     for r in payload.probe_results:
         label = f"target:{r.target_id}"
-        out.append(Sample(metric="probe.success", label=label, ts=r.ts, value=1.0 if r.success else 0.0, unit="bool"))
+        out.append(Sample(metric="probe.success", label=label, ts=r.ts, value=1.0 if r.success else 0.0, unit="bool",
+                          quality=measured))  # fmt: skip
         if r.success and r.latency_ms is not None:
-            out.append(Sample(metric="probe.latency_ms", label=label, ts=r.ts, value=r.latency_ms, unit="ms"))
+            out.append(Sample(metric="probe.latency_ms", label=label, ts=r.ts, value=r.latency_ms, unit="ms",
+                              quality=measured))  # fmt: skip
         if r.jitter_ms is not None:
             out.append(Sample(metric="probe.jitter_ms", label=label, ts=r.ts, value=r.jitter_ms, unit="ms",
-                              quality="derived"))  # fmt: skip
+                              quality=derived))  # fmt: skip
     return out
 
 
@@ -130,7 +148,10 @@ async def accept(
     now = now or utcnow()
     cfg = get_config()
     if cfg.demo_mode and payload.agent.platform != "demo":
-        raise IngestRejected(409, "server is running in DEMO_MODE; real collectors are rejected so demo and real data never mix")
+        raise IngestRejected(
+            409,
+            "server is running in DEMO_MODE; real collectors are rejected so demo and real data never mix",
+        )
     if not cfg.demo_mode and payload.agent.platform == "demo":
         raise IngestRejected(409, "synthetic demo data is only accepted in DEMO_MODE")
     source = await _bind_source(session, token, payload)
@@ -146,7 +167,9 @@ async def accept(
     payload.probe_results = [p for p in payload.probe_results if p.ts >= cutoff]
     for s in payload.samples:
         if s.unit != METRIC_UNITS[s.metric]:
-            raise IngestRejected(422, f"metric {s.metric} must use unit {METRIC_UNITS[s.metric]!r}, got {s.unit!r}")
+            raise IngestRejected(
+                422, f"metric {s.metric} must use unit {METRIC_UNITS[s.metric]!r}, got {s.unit!r}"
+            )
         if cfg.demo_mode is False and s.quality == "synthetic":
             raise IngestRejected(422, "synthetic samples are not accepted outside DEMO_MODE")
 
@@ -168,7 +191,7 @@ async def accept(
                 latest[f"{source.id}|{s.metric}|{s.label}"] = json.dumps(
                     {"v": s.value, "t": s.ts.isoformat(), "u": s.unit, "q": s.quality}
                 )
-            await redis.hset(CURRENT_HASH, mapping=latest)  # type: ignore[misc]
+            await redis.hset(CURRENT_HASH, mapping=latest)  # type: ignore[arg-type]  # redis-py Mapping is invariant
             await redis.publish(LIVE_CHANNEL, json.dumps(frame))
         await enqueue(source.id, payload.model_dump(mode="json"), now.isoformat())
     except IngestRejected:
@@ -190,18 +213,26 @@ async def process_batch(
     run concurrently, and two first-ever batches of a new agent would otherwise race to
     create its asset/identity rows. Different sources still process in parallel.
     """
-    await session.execute(text("SELECT pg_advisory_xact_lock(:ns, :source)"), {"ns": 7041, "source": source_id})
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(:ns, :source)"), {"ns": 7041, "source": source_id}
+    )
+    source = await session.get(DataSource, source_id)
+    if source is None:
+        # Deleted while the batch was queued: drop it instead of failing (and retrying) on the ledger FK.
+        return {"skipped": "source no longer exists", "samples": 0}
     ledger = await session.execute(
         pg_insert(IngestBatch)
-        .values(source_id=source_id, batch_id=payload.batch_id, received_at=received_at, sample_count=len(payload.samples))
+        .values(
+            source_id=source_id,
+            batch_id=payload.batch_id,
+            received_at=received_at,
+            sample_count=len(payload.samples),
+        )
         .on_conflict_do_nothing()
         .returning(IngestBatch.batch_id)
     )
     if ledger.first() is None:
         return {"duplicate": True, "samples": 0}
-    source = await session.get(DataSource, source_id)
-    if source is None:
-        return {"skipped": "source no longer exists", "samples": 0}
 
     now = utcnow()
     asset = await identity.resolve_agent_asset(
@@ -228,11 +259,21 @@ async def process_batch(
     if payload.probe_results:
         await session.execute(
             pg_insert(ProbeResult)
-            .values([
-                {"target_id": p.target_id, "source_id": source.id, "ts": p.ts, "success": p.success,
-                 "latency_ms": p.latency_ms, "method": p.method, "resolved_host": p.resolved_host, "error": p.error}
-                for p in payload.probe_results
-            ])  # fmt: skip
+            .values(
+                [
+                    {
+                        "target_id": p.target_id,
+                        "source_id": source.id,
+                        "ts": p.ts,
+                        "success": p.success,
+                        "latency_ms": p.latency_ms,
+                        "method": p.method,
+                        "resolved_host": p.resolved_host,
+                        "error": p.error,
+                    }
+                    for p in payload.probe_results
+                ]
+            )  # fmt: skip
             .on_conflict_do_nothing(index_elements=["target_id", "source_id", "ts"])
         )
 
@@ -244,10 +285,14 @@ async def process_batch(
             COLLECTOR_FAILURES.labels(source=source.name, collector=name).inc()
         source.last_error = "; ".join(f"{k}: {v}" for k, v in sorted(hb.errors.items())) or None
         for cap in hb.capabilities:
-            stmt = pg_insert(Capability).values(source_id=source.id, name=cap.name, status=cap.status, detail=cap.detail)
+            stmt = pg_insert(Capability).values(
+                source_id=source.id, name=cap.name, status=cap.status, detail=cap.detail
+            )
             await session.execute(
-                stmt.on_conflict_do_update(index_elements=["source_id", "name"],
-                                           set_={"status": cap.status, "detail": cap.detail, "updated_at": now})  # fmt: skip
+                stmt.on_conflict_do_update(
+                    index_elements=["source_id", "name"],
+                    set_={"status": cap.status, "detail": cap.detail, "updated_at": now},
+                )  # fmt: skip
             )
     if source.last_seen_at is None or received_at > source.last_seen_at:
         source.last_seen_at = received_at  # GREATEST: an out-of-order batch never moves it back
@@ -279,7 +324,8 @@ async def apply_inventory(
             "is_default_route": iface.name == gw_iface, "last_seen": now,
         }  # fmt: skip
         await session.execute(
-            pg_insert(Interface).values(asset_id=asset.id, name=iface.name, first_seen=now, **values)
+            pg_insert(Interface)
+            .values(asset_id=asset.id, name=iface.name, first_seen=now, **values)
             .on_conflict_do_update(index_elements=["asset_id", "name"], set_=values)  # fmt: skip
         )
         for a in iface.addresses:
@@ -289,11 +335,15 @@ async def apply_inventory(
                 continue
             if addr.is_loopback or addr.is_link_local:
                 continue
-            if a.prefix_len is not None and is_private_lan(addr) and a.prefix_len < addr.max_prefixlen:
+            # Record the subnets this host is attached to. This is an observation, not scope approval,
+            # so any non-global range counts (the strict RFC 1918/ULA policy lives in netscope).
+            if a.prefix_len is not None and addr.is_private and a.prefix_len < addr.max_prefixlen:
                 net = ipaddress.ip_network(f"{a.address}/{a.prefix_len}", strict=False)
                 seg = pg_insert(NetworkSegment).values(cidr=str(net), name=iface.name, origin="observed",
                                                        first_seen=now, last_seen=now, is_demo=source.is_demo)  # fmt: skip
-                await session.execute(seg.on_conflict_do_update(index_elements=["cidr"], set_={"last_seen": now}))
+                await session.execute(
+                    seg.on_conflict_do_update(index_elements=["cidr"], set_={"last_seen": now})
+                )
             await identity.upsert_address_observation(session, asset_id=asset.id, source_id=source.id,
                                                       kind="agent_self", ip=str(addr), mac=mac, hostname=None, now=now)  # fmt: skip
         if mac and not _is_virtual(iface.name):
@@ -303,7 +353,12 @@ async def apply_inventory(
         return
     learning_until = source.config.get("learning_until")
     if learning_until is None:
-        rule_minutes = 10
+        rule = (
+            await session.execute(
+                select(alert_service.AlertRule).where(alert_service.AlertRule.kind == "new_device")
+            )
+        ).scalar_one_or_none()
+        rule_minutes = float(rule.params.get("learning_minutes", 10)) if rule else 10.0
         learning_until = (now + timedelta(minutes=rule_minutes)).isoformat()
         source.config = {**source.config, "learning_until": learning_until}
     learning = now < datetime.fromisoformat(learning_until)
@@ -344,21 +399,32 @@ def _listener_keys(posture: Posture | dict[str, Any]) -> set[str] | None:
     return {f"{i['proto']}/{i['address']}:{i['port']}" for i in section["items"]}
 
 
-async def _sync_services(session: AsyncSession, *, asset: Asset, source: DataSource, posture: Posture, now: datetime) -> None:
+async def _sync_services(
+    session: AsyncSession, *, asset: Asset, source: DataSource, posture: Posture, now: datetime
+) -> None:
     async def sync(origin: str, items: list[dict[str, Any]]) -> None:
         seen_ids = []
         for it in items:
-            stmt = pg_insert(ObservedService).values(asset_id=asset.id, source_id=source.id, origin=origin,
-                                                     first_seen=now, last_seen=now, active=True, **it)  # fmt: skip
-            stmt = stmt.on_conflict_do_update(
+            insert = pg_insert(ObservedService).values(asset_id=asset.id, source_id=source.id, origin=origin,
+                                                       first_seen=now, last_seen=now, active=True, **it)  # fmt: skip
+            upsert = insert.on_conflict_do_update(
                 constraint="uq_observed_service",
-                set_={"last_seen": now, "active": True, "process": it.get("process"), "container": it.get("container")},
+                set_={
+                    "last_seen": now,
+                    "active": True,
+                    "process": it.get("process"),
+                    "container": it.get("container"),
+                },
             ).returning(ObservedService.id)
-            seen_ids.append((await session.execute(stmt)).scalar_one())
+            seen_ids.append((await session.execute(upsert)).scalar_one())
         await session.execute(
             update(ObservedService)
-            .where(ObservedService.asset_id == asset.id, ObservedService.origin == origin,
-                   ObservedService.active.is_(True), ObservedService.id.notin_(seen_ids or [0]))  # fmt: skip
+            .where(
+                ObservedService.asset_id == asset.id,
+                ObservedService.origin == origin,
+                ObservedService.active.is_(True),
+                ObservedService.id.notin_(seen_ids or [0]),
+            )  # fmt: skip
             .values(active=False)
         )
 
@@ -377,11 +443,15 @@ async def apply_posture(
 ) -> None:
     previous = (
         await session.execute(
-            select(PostureSnapshot).where(PostureSnapshot.source_id == source.id)
-            .order_by(PostureSnapshot.collected_at.desc()).limit(1)  # fmt: skip
+            select(PostureSnapshot)
+            .where(PostureSnapshot.source_id == source.id)
+            .order_by(PostureSnapshot.collected_at.desc())
+            .limit(1)  # fmt: skip
         )
     ).scalar_one_or_none()
-    last_known = max(previous.collected_at, previous.last_confirmed_at or previous.collected_at) if previous else None
+    last_known = (
+        max(previous.collected_at, previous.last_confirmed_at or previous.collected_at) if previous else None
+    )
     if last_known is not None and posture.collected_at <= last_known:
         return  # out-of-order snapshot: never let older evidence drive state transitions
 
@@ -393,8 +463,12 @@ async def apply_posture(
         previous.last_confirmed_at = posture.collected_at
         await session.execute(
             update(Finding)
-            .where(Finding.asset_id == asset.id, Finding.source_id == source.id,
-                   Finding.status.in_(engine.ACTIVE_STATUSES), Finding.rule_id != "OBS-STALE-001")  # fmt: skip
+            .where(
+                Finding.asset_id == asset.id,
+                Finding.source_id == source.id,
+                Finding.status.in_(engine.ACTIVE_STATUSES),
+                Finding.rule_id != "OBS-STALE-001",
+            )  # fmt: skip
             .values(last_observed_at=posture.collected_at)
         )
         return

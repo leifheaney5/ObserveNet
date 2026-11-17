@@ -62,22 +62,49 @@ class DemoGenerator:
 
     async def setup(self) -> None:
         async with session_scope() as session:
-            for spec in (
-                {"name": "Demo gateway", "kind": "gateway_icmp", "scope": "gateway", "host": "auto", "interval_s": 1.0},
-                {"name": "Demo external A (TCP 443)", "kind": "tcp", "scope": "external", "host": "1.1.1.1", "port": 443},
-                {"name": "Demo external B (TCP 443)", "kind": "tcp", "scope": "external", "host": "9.9.9.9", "port": 443},
-            ):
-                row = (await session.execute(select(ProbeTarget).where(ProbeTarget.name == spec["name"]))).scalar_one_or_none()
+            specs: tuple[dict[str, Any], ...] = (
+                {
+                    "name": "Demo gateway",
+                    "kind": "gateway_icmp",
+                    "scope": "gateway",
+                    "host": "auto",
+                    "interval_s": 1.0,
+                },
+                {
+                    "name": "Demo external A (TCP 443)",
+                    "kind": "tcp",
+                    "scope": "external",
+                    "host": "1.1.1.1",
+                    "port": 443,
+                },
+                {
+                    "name": "Demo external B (TCP 443)",
+                    "kind": "tcp",
+                    "scope": "external",
+                    "host": "9.9.9.9",
+                    "port": 443,
+                },
+            )
+            for spec in specs:
+                row = (
+                    await session.execute(select(ProbeTarget).where(ProbeTarget.name == spec["name"]))
+                ).scalar_one_or_none()
                 if row is None:
                     row = ProbeTarget(**spec, is_demo=True)
                     session.add(row)
                     await session.flush()
                 self.targets[spec["name"]] = row.id
             for agent in AGENTS:
-                source = (await session.execute(select(DataSource).where(DataSource.agent_uid == agent["uid"]))).scalar_one_or_none()
+                source = (
+                    await session.execute(select(DataSource).where(DataSource.agent_uid == agent["uid"]))
+                ).scalar_one_or_none()
                 token = None
                 if source is not None:
-                    token = (await session.execute(select(ApiToken).where(ApiToken.source_id == source.id))).scalars().first()
+                    token = (
+                        (await session.execute(select(ApiToken).where(ApiToken.source_id == source.id)))
+                        .scalars()
+                        .first()
+                    )
                 if token is None:
                     _, token = await auth_service.issue_agent_token(
                         session, name=f"demo generator ({agent['hostname']})", created_by=None, ttl_days=None,
@@ -89,7 +116,7 @@ class DemoGenerator:
 
     async def fixed(self) -> set[str]:
         try:
-            return set(await get_redis().smembers(DEMO_STATE_KEY))  # type: ignore[misc]
+            return {str(m) for m in await get_redis().smembers(DEMO_STATE_KEY)}
         except Exception:  # noqa: BLE001
             return set()
 
@@ -103,7 +130,14 @@ class DemoGenerator:
         }  # fmt: skip
 
     def _sample(self, metric: str, label: str, now: datetime, value: float, unit: str) -> dict[str, Any]:
-        return {"metric": metric, "label": label, "ts": now, "value": round(value, 3), "unit": unit, "quality": "synthetic"}
+        return {
+            "metric": metric,
+            "label": label,
+            "ts": now,
+            "value": round(value, 3),
+            "unit": unit,
+            "quality": "synthetic",
+        }
 
     async def payloads(self, now: datetime, posture_requested: set[str]) -> list[tuple[str, IngestPayload]]:
         t, rng = float(self.tick), self.rng
@@ -117,7 +151,10 @@ class DemoGenerator:
         gw = self._base(AGENTS[0], now)
         down = _wave(t, 38e6, 22e6, 900, 5e6, rng) * burst
         up = _wave(t, 6e6, 3e6, 700, 1e6, rng) * (burst**0.5)
-        gw["samples"] = [self._sample("wan.rx_bps", "wan0", now, down, "bit/s"), self._sample("wan.tx_bps", "wan0", now, up, "bit/s")]
+        gw["samples"] = [
+            self._sample("wan.rx_bps", "wan0", now, down, "bit/s"),
+            self._sample("wan.tx_bps", "wan0", now, up, "bit/s"),
+        ]
         shares = [0.34, 0.22, 0.16, 0.11, 0.09, 0.05, 0.03]
         for (_ip, mac), share in zip(LAN[1:8], shares, strict=True):
             jitter = max(0.1, rng.gauss(1, 0.25))
@@ -137,7 +174,9 @@ class DemoGenerator:
             self._sample("host.cpu_pct", "", now, lx["heartbeat"]["cpu_pct"], "percent"),
             self._sample("host.mem_pct", "", now, lx["heartbeat"]["mem_pct"], "percent"),
         ]
-        latency = max(0.3, rng.gauss(2.4, 0.5) + (rng.uniform(15, 60) if burst > 1 and rng.random() < 0.3 else 0))
+        latency = max(
+            0.3, rng.gauss(2.4, 0.5) + (rng.uniform(15, 60) if burst > 1 and rng.random() < 0.3 else 0)
+        )
         lost = rng.random() < (0.04 if burst > 1 else 0.003)
         probes = [{
             "target_id": self.targets["Demo gateway"], "ts": now, "success": not lost,
@@ -233,14 +272,23 @@ async def run_demo_generator(stop: asyncio.Event) -> None:
         now = utcnow()
         try:
             async with session_scope() as session:
-                requested = set(
-                    (await session.execute(select(DataSource.agent_uid).where(
-                        DataSource.is_demo.is_(True), DataSource.posture_requested_at.is_not(None)))).scalars()  # fmt: skip
-                )
+                requested = {
+                    uid
+                    for uid in (
+                        await session.execute(
+                            select(DataSource.agent_uid).where(
+                                DataSource.is_demo.is_(True), DataSource.posture_requested_at.is_not(None)
+                            )
+                        )
+                    ).scalars()  # fmt: skip
+                    if uid is not None
+                }
             for uid, payload in await gen.payloads(now, requested):
                 async with session_scope() as session:
                     token = await session.merge(gen.tokens[uid])
-                    await ingest_service.accept(session, get_redis(), token=token, payload=payload, enqueue=enqueue, now=now)
+                    await ingest_service.accept(
+                        session, get_redis(), token=token, payload=payload, enqueue=enqueue, now=now
+                    )
         except Exception:  # noqa: BLE001
             log.exception("demo_tick_failed")
         next_tick += 1.0

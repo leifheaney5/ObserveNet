@@ -81,7 +81,9 @@ def _section_unreadable(section: Any, name: str) -> RuleOutcome | None:
         return None
     reason = section.reason or "no reason given"
     if section.status in ("unsupported", "disabled"):
-        return RuleOutcome("unsupported", f"'{name}' collection is {section.status} on this collector: {reason}")
+        return RuleOutcome(
+            "unsupported", f"'{name}' collection is {section.status} on this collector: {reason}"
+        )
     return RuleOutcome("unknown", f"'{name}' could not be read: {reason}")
 
 
@@ -122,7 +124,11 @@ class WildcardListenerRule:
         if unreadable:
             return unreadable
         assert posture.listening is not None
-        allow = set(ctx.settings.listener_allowlist)
+        allow = set(
+            ctx.settings.windows_listener_allowlist
+            if self._platform == "windows"
+            else ctx.settings.listener_allowlist
+        )
         violations: list[Violation] = []
         grouped = _group_wildcard(posture.listening.items)
         for (proto, port), socks in sorted(grouped.items()):
@@ -241,8 +247,10 @@ class WindowsFirewallRule:
                     confidence="high",
                     evidence={"profile": name, "enabled": False, "all_profiles": profiles},
                     remediation=[
-                        ("Open an elevated PowerShell window on the Windows PC and re-enable the profile.",
-                         f"Set-NetFirewallProfile -Profile {name} -Enabled True"),
+                        (
+                            "Open an elevated PowerShell window on the Windows PC and re-enable the profile.",
+                            f"Set-NetFirewallProfile -Profile {name} -Enabled True",
+                        ),
                         ("Confirm the state.", "Get-NetFirewallProfile | Select Name, Enabled"),
                         ("Return here and choose Verify fix so ObserveNet re-reads the setting.", None),
                     ],  # fmt: skip
@@ -276,7 +284,9 @@ class Smb1Rule:
         assert posture.smb is not None
         method = posture.smb.method
         if posture.smb.smb1_enabled is None:
-            return RuleOutcome("unknown", "The collector could not determine the SMBv1 server setting.", method)
+            return RuleOutcome(
+                "unknown", "The collector could not determine the SMBv1 server setting.", method
+            )
         state = {"smb1_enabled": posture.smb.smb1_enabled, "smb2_enabled": posture.smb.smb2_enabled}
         if not posture.smb.smb1_enabled:
             return RuleOutcome("pass", "SMBv1 server protocol is disabled.", method, clean_evidence=state)
@@ -353,18 +363,30 @@ class DockerPublishedPortRule:
                     impact="A container service may be reachable by every device on the networks this host is attached to.",
                     severity="medium" if service else "low",
                     severity_rationale=(
-                        f"The port is commonly used by {service}." if service
+                        f"The port is commonly used by {service}."
+                        if service
                         else "Publishing on all interfaces is Docker's default and frequently intended."
                     ),
                     confidence="high",
-                    evidence={"container": p.container, "image": p.image, "proto": p.proto,
-                              "host_address": p.host_address, "host_port": p.host_port,
-                              "container_port": p.container_port},  # fmt: skip
+                    evidence={
+                        "container": p.container,
+                        "image": p.image,
+                        "proto": p.proto,
+                        "host_address": p.host_address,
+                        "host_port": p.host_port,
+                        "container_port": p.container_port,
+                    },  # fmt: skip
                     remediation=[
-                        ("If the service is only for this host or a reverse proxy, publish it on loopback: "
-                         f"change the mapping to 127.0.0.1:{p.host_port}:{p.container_port} in the compose "
-                         "file or `docker run -p` and recreate the container.", None),
-                        (f"If it is intended, add '{p.proto}/{p.host_port}' to the Docker port allowlist in Settings.", None),
+                        (
+                            "If the service is only for this host or a reverse proxy, publish it on loopback: "
+                            f"change the mapping to 127.0.0.1:{p.host_port}:{p.container_port} in the compose "
+                            "file or `docker run -p` and recreate the container.",
+                            None,
+                        ),
+                        (
+                            f"If it is intended, add '{p.proto}/{p.host_port}' to the Docker port allowlist in Settings.",
+                            None,
+                        ),
                     ],  # fmt: skip
                 )
             )
@@ -396,7 +418,9 @@ class RouterUpnpRule:
     )
 
     def evaluate(self, posture: Posture, ctx: RuleContext) -> RuleOutcome:
-        return RuleOutcome("unsupported", "No read-only router provider reports UPnP or port-forward settings.")
+        return RuleOutcome(
+            "unsupported", "No read-only router provider reports UPnP or port-forward settings."
+        )
 
 
 STALE_RULE = RuleMeta(

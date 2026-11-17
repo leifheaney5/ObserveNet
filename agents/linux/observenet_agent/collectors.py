@@ -106,7 +106,12 @@ def listening_sockets() -> Section:
     """Listening TCP / bound UDP sockets from the kernel socket table of this network namespace."""
     found: list[ListeningSocket] = []
     read_any = False
-    for fname, proto, v6 in (("tcp", "tcp", False), ("tcp6", "tcp", True), ("udp", "udp", False), ("udp6", "udp", True)):
+    for fname, proto, v6 in (
+        ("tcp", "tcp", False),
+        ("tcp6", "tcp", True),
+        ("udp", "udp", False),
+        ("udp6", "udp", True),
+    ):
         try:
             text = (PROC / "net" / fname).read_text()
         except OSError:
@@ -118,7 +123,9 @@ def listening_sockets() -> Section:
     names = _process_names()
     unique: dict[tuple[str, str, int], ListeningSocket] = {}
     for s in found:
-        unique[(s.proto, s.address, s.port)] = ListeningSocket(s.proto, s.address, s.port, names.get((s.proto, s.port)))
+        unique[(s.proto, s.address, s.port)] = ListeningSocket(
+            s.proto, s.address, s.port, names.get((s.proto, s.port))
+        )
     named = sum(1 for s in unique.values() if s.process)
     return Section(
         "ok",
@@ -134,7 +141,10 @@ async def docker_published_ports(api_url: str | None) -> Section:
     Leave OBSERVENET_DOCKER_API_URL unset to keep this disabled.
     """
     if not api_url:
-        return Section("disabled", "Docker inventory is opt-in (set OBSERVENET_DOCKER_API_URL to a read-only socket proxy)")
+        return Section(
+            "disabled",
+            "Docker inventory is opt-in (set OBSERVENET_DOCKER_API_URL to a read-only socket proxy)",
+        )
     try:
         async with httpx.AsyncClient(base_url=api_url, timeout=5) as client:
             resp = await client.get("/containers/json")
@@ -151,4 +161,6 @@ async def docker_published_ports(api_url: str | None) -> Section:
             items.append({"container": name[:120], "image": (c.get("Image") or "")[:200] or None,
                           "proto": p.get("Type", "tcp"), "host_address": p.get("IP") or "0.0.0.0",
                           "host_port": p["PublicPort"], "container_port": p["PrivatePort"]})  # fmt: skip
-    return Section("ok", method="Docker Engine API GET /containers/json via read-only socket proxy", items=items)
+    return Section(
+        "ok", method="Docker Engine API GET /containers/json via read-only socket proxy", items=items
+    )

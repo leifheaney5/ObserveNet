@@ -63,6 +63,16 @@ class SpeedtestSettings(BaseModel):
 class PostureSettings(BaseModel):
     # "proto/port" entries that may listen on all interfaces without raising a finding.
     listener_allowlist: list[str] = Field(default_factory=lambda: ["tcp/22"], max_length=200)
+    # Wildcard listeners every stock Windows installation has (RPC endpoint mapper, NetBIOS/SMB,
+    # CDPSvc, WS-Discovery, Delivery Optimization, mDNS/LLMNR/SSDP, IPsec). SMB exposure is
+    # judged by the firewall and SMBv1 checks instead. Untested against a real Windows host.
+    windows_listener_allowlist: list[str] = Field(
+        default_factory=lambda: [
+            "tcp/135", "tcp/139", "tcp/445", "tcp/5040", "tcp/5357", "tcp/7680",
+            "udp/137", "udp/138", "udp/500", "udp/1900", "udp/3702", "udp/4500", "udp/5050", "udp/5353", "udp/5355",
+        ],
+        max_length=200,
+    )  # fmt: skip
     docker_port_allowlist: list[str] = Field(default_factory=list, max_length=200)
     verify_timeout_s: Annotated[int, Field(ge=15, le=900)] = 90
 

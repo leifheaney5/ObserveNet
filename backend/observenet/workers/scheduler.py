@@ -35,7 +35,7 @@ async def _observe_queues() -> None:
 
     redis = get_redis()
     for queue in (INGEST_QUEUE, MAINT_QUEUE):
-        QUEUE_DEPTH.labels(queue=queue).set(await redis.llen(f"observenet:{queue}"))  # type: ignore[misc]
+        QUEUE_DEPTH.labels(queue=queue).set(await redis.llen(f"observenet:{queue}"))
     now = utcnow()
     async with session_scope() as session:
         for name, last in (await session.execute(select(DataSource.name, DataSource.last_seen_at))).all():

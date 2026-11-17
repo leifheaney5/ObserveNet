@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "agent": {"agent_uid": "win-0123456789abcdef0123456789abcdef", "hostname": "DESKTOP-EXAMPLE", "platform": "windows", "agent_version": "0.1.0"},
+  "batch_id": "5f57724aec4240d2ba6b04f12e8ab61d",
+  "sent_at": "2026-01-01T12:00:05.000Z",
+  "samples": [
+    {"metric": "net.rx_bps", "label": "Ethernet", "ts": "2026-01-01T12:00:05.000Z", "value": 1250000.0, "unit": "bit/s", "interval_s": 5.002, "quality": "measured"},
+    {"metric": "net.tx_bps", "label": "Ethernet", "ts": "2026-01-01T12:00:05.000Z", "value": 98000.5, "unit": "bit/s", "interval_s": 5.002, "quality": "measured"}
+  ],
+  "probe_results": [],
+  "heartbeat": {
+    "ts": "2026-01-01T12:00:05.000Z", "cpu_pct": null, "mem_pct": 41.3, "uptime_s": 5.1,
+    "errors": {},
+    "capabilities": [
+      {"name": "listening_sockets", "status": "supported", "detail": "Get-NetTCPConnection -State Listen; Get-NetUDPEndpoint"},
+      {"name": "nic_counters", "status": "supported", "detail": "Get-NetAdapterStatistics cumulative counters, 5 s deltas"},
+      {"name": "smb_configuration", "status": "supported", "detail": "registry: LanmanServer\\Parameters (SMB1, SMB2)"},
+      {"name": "windows_firewall", "status": "supported", "detail": "Get-NetFirewallProfile -PolicyStore ActiveStore (effective policy)"}
+    ]
+  },
+  "inventory": {
+    "collected_at": "2026-01-01T12:00:05.000Z",
+    "interfaces": [
+      {"name": "Ethernet", "mac": "00:00:5e:00:53:10", "is_up": true, "link_speed_mbps": 1000, "mtu": 1500,
+       "addresses": [{"family": "ipv4", "address": "192.168.50.10", "prefix_len": 24}, {"family": "ipv6", "address": "fe80::1", "prefix_len": 64}]},
+      {"name": "Wi-Fi", "mac": null, "is_up": false, "link_speed_mbps": null, "mtu": null, "addresses": []}
+    ],
+    "default_gateway": {"ip": "192.168.50.1", "interface": "Ethernet"},
+    "neighbors_status": "unsupported",
+    "neighbors": []
+  },
+  "posture": {
+    "collected_at": "2026-01-01T12:00:05.000Z",
+    "firewall": {"status": "ok", "reason": "", "method": "Get-NetFirewallProfile -PolicyStore ActiveStore (effective policy)",
+                 "profiles": [{"name": "Domain", "enabled": true}, {"name": "Private", "enabled": true}, {"name": "Public", "enabled": false}]},
+    "smb": {"status": "ok", "reason": "SMB1 registry value is not set (OS default applies); Get-SmbServerConfiguration needs elevation: Access is denied.",
+            "method": "registry: LanmanServer\\Parameters (SMB1, SMB2)", "smb1_enabled": null, "smb2_enabled": null},
+    "listening": {"status": "ok", "reason": null, "method": "Get-NetTCPConnection -State Listen; Get-NetUDPEndpoint",
+                  "items": [{"proto": "tcp", "address": "0.0.0.0", "port": 445, "process": "System"},
+                            {"proto": "tcp", "address": "::", "port": 135, "process": "svchost"},
+                            {"proto": "udp", "address": "0.0.0.0", "port": 5353, "process": null}]}
+  }
+}

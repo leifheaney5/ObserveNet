@@ -18,22 +18,32 @@ from observenet.services.views import primary_selection
 MIN_HOURS = 6
 
 
-async def _series_id(session: AsyncSession, source_id: int | None, metric: str, label: str | None) -> int | None:
+async def _series_id(
+    session: AsyncSession, source_id: int | None, metric: str, label: str | None
+) -> int | None:
     if source_id is None or label is None:
         return None
     return (
         await session.execute(
-            select(MetricSeries.id).where(MetricSeries.source_id == source_id, MetricSeries.metric == metric,
-                                          MetricSeries.label == label)  # fmt: skip
+            select(MetricSeries.id).where(
+                MetricSeries.source_id == source_id,
+                MetricSeries.metric == metric,
+                MetricSeries.label == label,
+            )  # fmt: skip
         )
     ).scalar_one_or_none()
 
 
-async def _period_avg(session: AsyncSession, series_id: int, start: datetime, end: datetime) -> tuple[float | None, int, int]:
+async def _period_avg(
+    session: AsyncSession, series_id: int, start: datetime, end: datetime
+) -> tuple[float | None, int, int]:
     row = (
         await session.execute(
-            select(func.sum(MetricRollup1h.sum), func.sum(MetricRollup1h.count), func.count())
-            .where(MetricRollup1h.series_id == series_id, MetricRollup1h.bucket >= start, MetricRollup1h.bucket < end)
+            select(func.sum(MetricRollup1h.sum), func.sum(MetricRollup1h.count), func.count()).where(
+                MetricRollup1h.series_id == series_id,
+                MetricRollup1h.bucket >= start,
+                MetricRollup1h.bucket < end,
+            )
         )
     ).one()
     total, n, hours = row
@@ -65,7 +75,11 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
                                                     f"24 h before (have {h_cur} h and {h_prev} h)."})  # fmt: skip
             return
         change = (cur - prev) / prev * 100 if prev else None
-        direction = "about the same as" if change is None or abs(change) < 10 else ("higher than" if change > 0 else "lower than")
+        direction = (
+            "about the same as"
+            if change is None or abs(change) < 10
+            else ("higher than" if change > 0 else "lower than")
+        )
         insights.append({
             "key": key, "title": title, "severity": "notice" if change is not None and abs(change) >= 50 else "info",
             "summary": f"{what} averaged {fmt(cur)} over the last 24 h, {direction} the previous 24 h ({fmt(prev)}"
@@ -79,9 +93,27 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
     lat_series = await _series_id(session, sid, "probe.latency_ms", f"target:{gw}" if gw else None)
     rx_series = await _series_id(session, sid, "net.rx_bps", iface)
     tx_series = await _series_id(session, sid, "net.tx_bps", iface)
-    await compare("latency_trend", "Gateway latency vs. yesterday", lat_series, lambda v: f"{v:.1f} ms", "Gateway round-trip time")
-    await compare("rx_trend", "Host download traffic vs. yesterday", rx_series, _fmt_bps, f"Receive throughput on {iface}")
-    await compare("tx_trend", "Host upload traffic vs. yesterday", tx_series, _fmt_bps, f"Transmit throughput on {iface}")
+    await compare(
+        "latency_trend",
+        "Gateway latency vs. yesterday",
+        lat_series,
+        lambda v: f"{v:.1f} ms",
+        "Gateway round-trip time",
+    )
+    await compare(
+        "rx_trend",
+        "Host download traffic vs. yesterday",
+        rx_series,
+        _fmt_bps,
+        f"Receive throughput on {iface}",
+    )
+    await compare(
+        "tx_trend",
+        "Host upload traffic vs. yesterday",
+        tx_series,
+        _fmt_bps,
+        f"Transmit throughput on {iface}",
+    )
 
     # Busiest hour (host NIC receive)
     if rx_series is not None:
@@ -89,7 +121,8 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
             await session.execute(
                 select(MetricRollup1h.bucket, MetricRollup1h.avg, MetricRollup1h.max)
                 .where(MetricRollup1h.series_id == rx_series, MetricRollup1h.bucket >= hour0 - day)
-                .order_by(MetricRollup1h.avg.desc()).limit(1)  # fmt: skip
+                .order_by(MetricRollup1h.avg.desc())
+                .limit(1)  # fmt: skip
             )
         ).first()
         if row:
@@ -123,7 +156,9 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
         ).one()
         minutes, busy, slow, both = (int(x or 0) for x in rows)
         if minutes < 120 or busy == 0:
-            skipped.append({"key": "traffic_latency", "reason": f"Needs 120+ minutes with both series (have {minutes})."})
+            skipped.append(
+                {"key": "traffic_latency", "reason": f"Needs 120+ minutes with both series (have {minutes})."}
+            )
         else:
             expected = busy * slow / minutes
             notable = both >= 5 and both > 2 * expected
@@ -141,9 +176,15 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
 
     # Inventory changes
     new_assets = list(
-        (await session.execute(select(Asset).where(Asset.first_seen >= now - day, Asset.merged_into_id.is_(None)))).scalars()
+        (
+            await session.execute(
+                select(Asset).where(Asset.first_seen >= now - day, Asset.merged_into_id.is_(None))
+            )
+        ).scalars()
     )
-    total_assets = (await session.execute(select(func.count()).select_from(Asset).where(Asset.merged_into_id.is_(None)))).scalar_one()
+    total_assets = (
+        await session.execute(select(func.count()).select_from(Asset).where(Asset.merged_into_id.is_(None)))
+    ).scalar_one()
     if total_assets:
         insights.append({
             "key": "new_devices", "title": "Devices first seen in the last 24 h", "severity": "notice" if new_assets else "info",
@@ -155,9 +196,14 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
         })  # fmt: skip
         quiet = (
             await session.execute(
-                select(func.count()).select_from(Asset).where(
-                    Asset.merged_into_id.is_(None), Asset.managed.is_(False),
-                    Asset.last_seen < now - day, Asset.last_seen >= now - timedelta(days=7))  # fmt: skip
+                select(func.count())
+                .select_from(Asset)
+                .where(
+                    Asset.merged_into_id.is_(None),
+                    Asset.managed.is_(False),
+                    Asset.last_seen < now - day,
+                    Asset.last_seen >= now - timedelta(days=7),
+                )  # fmt: skip
             )
         ).scalar_one()
         if quiet:
@@ -173,8 +219,10 @@ async def build_insights(session: AsyncSession, *, now: datetime) -> dict[str, A
     changes = list(
         (
             await session.execute(
-                select(Event).where(Event.kind == "posture.services_changed", Event.ts >= now - timedelta(days=7))
-                .order_by(Event.ts.desc()).limit(20)  # fmt: skip
+                select(Event)
+                .where(Event.kind == "posture.services_changed", Event.ts >= now - timedelta(days=7))
+                .order_by(Event.ts.desc())
+                .limit(20)  # fmt: skip
             )
         ).scalars()
     )

@@ -1,0 +1,203 @@
+type AddressSighting {
+  ip: String!
+  mac: String
+  hostname: String
+  evidence: String!
+  firstSeen: DateTime!
+  lastSeen: DateTime!
+  source: String
+}
+
+type AssessmentRun {
+  id: Int!
+  assetId: Int!
+  trigger: String!
+  engineVersion: String!
+  startedAt: DateTime!
+  finishedAt: DateTime
+  results: [CheckOutcome!]!
+}
+
+type AuditEntry {
+  ts: DateTime!
+  actor: String!
+  action: String!
+}
+
+type CheckOutcome {
+  ruleId: String!
+  ruleVersion: Int!
+  status: String!
+  summary: String!
+}
+
+"""Date with time (isoformat)"""
+scalar DateTime
+
+type Device {
+  id: Int!
+  name: String!
+  hostname: String
+  assetType: String!
+  groupName: String
+  tags: [String!]!
+  vendor: String
+  confidence: String!
+  confidenceReason: String
+  macRandomized: Boolean!
+  managed: Boolean!
+  firstSeen: DateTime
+  lastSeen: DateTime
+  presence: Presence!
+  identities: [Identity!]!
+  addresses: [AddressSighting!]!
+  interfaces: [NetworkInterface!]!
+  services: [Service!]!
+  findings(activeOnly: Boolean! = true): [Finding!]!
+
+  """
+  Observed asset ↔ interface/subnet/service relationships (not attack paths).
+  """
+  relationships: [Relationship!]!
+
+  """Admin only: who changed this device and when."""
+  auditTrail: [AuditEntry!]!
+}
+
+type DeviceConnection {
+  edges: [DeviceEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type DeviceEdge {
+  cursor: String!
+  node: Device!
+}
+
+input DeviceFilter {
+  search: String = null
+  assetType: String = null
+  managed: Boolean = null
+  tag: String = null
+}
+
+type Finding {
+  id: Int!
+  assetId: Int!
+  ruleId: String!
+  ruleVersion: Int!
+  title: String!
+  observation: String!
+  inference: String
+  classification: String!
+  severity: String!
+  severityRationale: String!
+  confidence: String!
+  status: String!
+  verificationStatus: String!
+  category: String!
+  firstObservedAt: DateTime!
+  lastObservedAt: DateTime!
+  resolvedAt: DateTime
+  device: Device
+}
+
+type FindingConnection {
+  edges: [FindingEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type FindingEdge {
+  cursor: String!
+  node: Finding!
+}
+
+input FindingFilter {
+  status: String = null
+  severity: String = null
+  assetId: Int = null
+  category: String = null
+}
+
+type Identity {
+  kind: String!
+  value: String!
+  confidence: String!
+  firstSeen: DateTime!
+  lastSeen: DateTime!
+}
+
+type NetworkInterface {
+  name: String!
+  mac: String
+  isUp: Boolean
+  linkSpeedMbps: Int
+  addresses: [String!]!
+}
+
+type NetworkSummary {
+  generatedAt: DateTime!
+  demoMode: Boolean!
+  deviceCount: Int!
+  managedDeviceCount: Int!
+  openFindings: [SeverityCount!]!
+  activeAlerts: Int!
+  internetStatus: String!
+  internetStatusReason: String!
+  sources: [SourceHealth!]!
+  inventoryCoverage: String!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type Presence {
+  state: String!
+  label: String!
+  basis: String!
+}
+
+type Query {
+  """Keyset-paginated inventory, newest sighting first."""
+  devices(filter: DeviceFilter = null, after: String = null, first: Int! = 25): DeviceConnection!
+  device(id: Int!): Device
+  findings(filter: FindingFilter = null, after: String = null, first: Int! = 25): FindingConnection!
+
+  """Assessment history for one asset, newest first."""
+  assessments(assetId: Int!, first: Int! = 20): [AssessmentRun!]!
+  networkSummary: NetworkSummary!
+}
+
+type Relationship {
+  kind: String!
+  targetType: String!
+  targetId: String!
+  targetLabel: String!
+  evidence: String!
+}
+
+type Service {
+  origin: String!
+  proto: String!
+  address: String!
+  port: Int!
+  process: String
+  container: String
+  lastSeen: DateTime!
+}
+
+type SeverityCount {
+  severity: String!
+  count: Int!
+}
+
+type SourceHealth {
+  name: String!
+  kind: String!
+  freshness: String!
+  lastSeenAt: DateTime
+}

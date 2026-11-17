@@ -35,12 +35,15 @@ COLLECTOR_FAILURES = Counter(
 QUEUE_DEPTH = Gauge("observenet_queue_depth", "Messages waiting in a worker queue", ["queue"])
 WS_CLIENTS = Gauge("observenet_ws_clients", "Connected live-stream clients")
 WS_DROPPED = Counter("observenet_ws_dropped_clients_total", "Clients dropped for backpressure")
-DATA_FRESHNESS = Gauge("observenet_source_data_age_seconds", "Seconds since a source last reported", ["source"])
+DATA_FRESHNESS = Gauge(
+    "observenet_source_data_age_seconds", "Seconds since a source last reported", ["source"]
+)
 TASK_RUNS = Counter("observenet_task_runs_total", "Background task executions", ["task", "outcome"])
 TASK_DURATION = Histogram("observenet_task_duration_seconds", "Background task duration", ["task"])
 ALERT_TRANSITIONS = Counter("observenet_alert_transitions_total", "Alert state transitions", ["kind", "to"])
 
 _tracing_configured = False
+_instrumented_engine: Any = None
 _metrics_started = False
 
 
@@ -64,8 +67,14 @@ def instrument_app(app: Any, engine: Any) -> None:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
+    global _instrumented_engine
     FastAPIInstrumentor.instrument_app(app, excluded_urls="/api/v1/health,/api/v1/ready")
-    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    if _instrumented_engine is not engine.sync_engine:  # one engine per process; apps may be rebuilt
+        instrumentor = SQLAlchemyInstrumentor()
+        if instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+        instrumentor.instrument(engine=engine.sync_engine)
+        _instrumented_engine = engine.sync_engine
 
 
 def start_metrics_listener() -> None:

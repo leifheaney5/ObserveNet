@@ -52,7 +52,7 @@ def _export_graphql(path: str) -> int:
 
 async def _run(coro: object) -> int:
     try:
-        return await coro  # type: ignore[misc, no-any-return]
+        return await coro  # type: ignore[misc]
     finally:
         await dispose_engine()
 

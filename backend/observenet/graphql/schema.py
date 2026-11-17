@@ -11,6 +11,7 @@ capped page sizes, introspection off in production, no GraphiQL in production.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -18,7 +19,7 @@ from typing import Any
 
 import strawberry
 from fastapi import HTTPException, Request
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import func, literal, select, tuple_
 from strawberry.dataloader import DataLoader
 from strawberry.extensions import DisableIntrospection, MaxAliasesLimiter, MaxTokensLimiter, QueryDepthLimiter
 from strawberry.fastapi import BaseContext, GraphQLRouter
@@ -48,7 +49,7 @@ from observenet.models import Finding as FindingModel
 from observenet.security.engine import ACTIVE_STATUSES
 from observenet.services import views
 from observenet.services.connectivity import internet_status
-from observenet.services.settings import get_runtime_settings
+from observenet.services.settings import FreshnessSettings, get_runtime_settings
 
 MAX_PAGE = 100
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
@@ -117,8 +118,34 @@ class Loaders:
         self.services = _group_loader(ObservedService, ObservedService.port, ObservedService.active.is_(True))
         self.findings = _group_loader(FindingModel, FindingModel.last_observed_at.desc())
         self.assets: DataLoader[int, Asset | None] = DataLoader(load_fn=self._load_assets)
+        self.agent_last_seen: DataLoader[int, datetime | None] = DataLoader(
+            load_fn=self._load_agent_last_seen
+        )
+        self._freshness: asyncio.Future[FreshnessSettings] | None = None
         self.source_names: DataLoader[int, str | None] = DataLoader(load_fn=self._load_source_names)
         self.segments: DataLoader[int, NetworkSegment | None] = DataLoader(load_fn=self._load_segments)
+
+    async def freshness(self) -> FreshnessSettings:
+        """Runtime freshness thresholds, read once per request however many devices ask."""
+        if self._freshness is None:
+            self._freshness = asyncio.ensure_future(self._load_freshness())
+        return await self._freshness
+
+    @staticmethod
+    async def _load_freshness() -> FreshnessSettings:
+        async with session_scope() as db:
+            return (await get_runtime_settings(db)).freshness
+
+    @staticmethod
+    async def _load_agent_last_seen(asset_ids: list[int]) -> list[datetime | None]:
+        async with session_scope() as db:
+            result = await db.execute(
+                select(DataSource.asset_id, func.max(DataSource.last_seen_at))
+                .where(DataSource.asset_id.in_(asset_ids))
+                .group_by(DataSource.asset_id)
+            )
+            seen: dict[int | None, datetime | None] = {asset_id: last for asset_id, last in result.all()}
+        return [seen.get(i) for i in asset_ids]
 
     @staticmethod
     async def _load_assets(ids: list[int]) -> list[Asset | None]:
@@ -129,13 +156,19 @@ class Loaders:
     @staticmethod
     async def _load_source_names(ids: list[int]) -> list[str | None]:
         async with session_scope() as db:
-            rows = dict((await db.execute(select(DataSource.id, DataSource.name).where(DataSource.id.in_(ids)))).all())
+            result = await db.execute(select(DataSource.id, DataSource.name).where(DataSource.id.in_(ids)))
+            rows: dict[int, str] = {source_id: name for source_id, name in result.all()}
         return [rows.get(i) for i in ids]
 
     @staticmethod
     async def _load_segments(ids: list[int]) -> list[NetworkSegment | None]:
         async with session_scope() as db:
-            rows = {s.id: s for s in (await db.execute(select(NetworkSegment).where(NetworkSegment.id.in_(ids)))).scalars()}
+            rows = {
+                s.id: s
+                for s in (
+                    await db.execute(select(NetworkSegment).where(NetworkSegment.id.in_(ids)))
+                ).scalars()
+            }
         return [rows.get(i) for i in ids]
 
 
@@ -265,13 +298,11 @@ class Device:
     model: strawberry.Private[Asset]
 
     @strawberry.field
-    async def presence(self) -> Presence:
-        async with session_scope() as db:
-            settings = await get_runtime_settings(db)
-            agent_seen = (
-                await db.execute(select(func.max(DataSource.last_seen_at)).where(DataSource.asset_id == self.id))
-            ).scalar()
-        return Presence(**views.presence(self.model, utcnow(), settings.freshness, agent_seen))
+    async def presence(self, info: Info[Context, Any]) -> Presence:
+        loaders = info.context.loaders
+        freshness = await loaders.freshness()
+        agent_seen = await loaders.agent_last_seen.load(self.id)  # batched across all devices in the query
+        return Presence(**views.presence(self.model, utcnow(), freshness, agent_seen))
 
     @strawberry.field
     async def identities(self, info: Info[Context, Any]) -> list[Identity]:
@@ -302,7 +333,9 @@ class Device:
         rows = await info.context.loaders.findings.load(self.id)
         return [_finding(f) for f in rows if not active_only or f.status in ACTIVE_STATUSES]
 
-    @strawberry.field(description="Observed asset ↔ interface/subnet/service relationships (not attack paths).")
+    @strawberry.field(
+        description="Observed asset ↔ interface/subnet/service relationships (not attack paths)."
+    )
     async def relationships(self, info: Info[Context, Any]) -> list[Relationship]:
         loaders = info.context.loaders
         out: list[Relationship] = []
@@ -323,13 +356,17 @@ class Device:
                                     target_label=f"{s.proto}/{s.port}", evidence=s.origin.replace("_", " ")))  # fmt: skip
         return out
 
-    @strawberry.field(permission_classes=[IsAdmin], description="Admin only: who changed this device and when.")
+    @strawberry.field(
+        permission_classes=[IsAdmin], description="Admin only: who changed this device and when."
+    )
     async def audit_trail(self) -> list[AuditEntry]:
         async with session_scope() as db:
             rows = (
                 await db.execute(
-                    select(AuditEvent).where(AuditEvent.target_type == "asset", AuditEvent.target_id == str(self.id))
-                    .order_by(AuditEvent.ts.desc()).limit(50)  # fmt: skip
+                    select(AuditEvent)
+                    .where(AuditEvent.target_type == "asset", AuditEvent.target_id == str(self.id))
+                    .order_by(AuditEvent.ts.desc())
+                    .limit(50)  # fmt: skip
                 )
             ).scalars()
             return [AuditEntry(ts=r.ts, actor=r.actor_label, action=r.action) for r in rows]
@@ -461,8 +498,12 @@ def _page_size(first: int) -> int:
 
 @strawberry.type
 class Query:
-    @strawberry.field(permission_classes=[IsAuthenticated], description="Keyset-paginated inventory, newest sighting first.")
-    async def devices(self, filter: DeviceFilter | None = None, after: str | None = None, first: int = 25) -> DeviceConnection:  # noqa: A002
+    @strawberry.field(
+        permission_classes=[IsAuthenticated], description="Keyset-paginated inventory, newest sighting first."
+    )
+    async def devices(
+        self, filter: DeviceFilter | None = None, after: str | None = None, first: int = 25
+    ) -> DeviceConnection:  # noqa: A002
         size = _page_size(first)
         sort_key = func.coalesce(Asset.last_seen, EPOCH)
         base = select(Asset).where(Asset.merged_into_id.is_(None))
@@ -475,16 +516,26 @@ class Query:
                 base = base.where(Asset.tags.contains([filter.tag]))
             if filter.search:
                 like = f"%{filter.search.lower()[:100]}%"
-                base = base.where(func.lower(func.coalesce(Asset.display_name, Asset.hostname, "")).like(like))
+                base = base.where(
+                    func.lower(func.coalesce(Asset.display_name, Asset.hostname, "")).like(like)
+                )
         stmt = base
         if after:
             ts, asset_id = _decode(after, 2)
-            stmt = stmt.where(tuple_(sort_key, Asset.id) < tuple_(datetime.fromisoformat(ts), int(asset_id)))
+            stmt = stmt.where(
+                tuple_(sort_key, Asset.id)
+                < tuple_(literal(datetime.fromisoformat(ts)), literal(int(asset_id)))
+            )
         async with session_scope() as db:
             total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
-            rows = list((await db.execute(stmt.order_by(sort_key.desc(), Asset.id.desc()).limit(size + 1))).scalars())
+            rows = list(
+                (await db.execute(stmt.order_by(sort_key.desc(), Asset.id.desc()).limit(size + 1))).scalars()
+            )
         page = rows[:size]
-        edges = [DeviceEdge(cursor=_encode((a.last_seen or EPOCH).isoformat(), a.id), node=_device(a)) for a in page]
+        edges = [
+            DeviceEdge(cursor=_encode((a.last_seen or EPOCH).isoformat(), a.id), node=_device(a))
+            for a in page
+        ]
         return DeviceConnection(edges=edges, total_count=total,
                                 page_info=PageInfo(has_next_page=len(rows) > size, end_cursor=edges[-1].cursor if edges else None))  # fmt: skip
 
@@ -494,7 +545,9 @@ class Query:
         return _device(asset) if asset else None
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def findings(self, filter: FindingFilter | None = None, after: str | None = None, first: int = 25) -> FindingConnection:  # noqa: A002
+    async def findings(
+        self, filter: FindingFilter | None = None, after: str | None = None, first: int = 25
+    ) -> FindingConnection:  # noqa: A002
         size = _page_size(first)
         base = select(FindingModel)
         status = (filter.status if filter else None) or "active"
@@ -521,13 +574,21 @@ class Query:
         return FindingConnection(edges=edges, total_count=total,
                                  page_info=PageInfo(has_next_page=len(rows) > size, end_cursor=edges[-1].cursor if edges else None))  # fmt: skip
 
-    @strawberry.field(permission_classes=[IsAuthenticated], description="Assessment history for one asset, newest first.")
+    @strawberry.field(
+        permission_classes=[IsAuthenticated], description="Assessment history for one asset, newest first."
+    )
     async def assessments(self, asset_id: int, first: int = 20) -> list[AssessmentRun]:
         size = _page_size(first)
         async with session_scope() as db:
             runs = list(
-                (await db.execute(select(Assessment).where(Assessment.asset_id == asset_id)
-                                  .order_by(Assessment.started_at.desc()).limit(size))).scalars()  # fmt: skip
+                (
+                    await db.execute(
+                        select(Assessment)
+                        .where(Assessment.asset_id == asset_id)
+                        .order_by(Assessment.started_at.desc())
+                        .limit(size)
+                    )
+                ).scalars()  # fmt: skip
             )
             results: dict[int, list[CheckOutcome]] = defaultdict(list)
             if runs:
@@ -543,12 +604,18 @@ class Query:
         now = utcnow()
         async with session_scope() as db:
             settings = await get_runtime_settings(db)
-            devices = (await db.execute(select(func.count()).select_from(Asset).where(Asset.merged_into_id.is_(None)))).scalar_one()
+            devices = (
+                await db.execute(
+                    select(func.count()).select_from(Asset).where(Asset.merged_into_id.is_(None))
+                )
+            ).scalar_one()
             managed = (await db.execute(select(func.count()).select_from(Asset).where(
                 Asset.merged_into_id.is_(None), Asset.managed.is_(True)))).scalar_one()  # fmt: skip
             sev = (await db.execute(select(FindingModel.severity, func.count()).where(
                 FindingModel.status.in_(ACTIVE_STATUSES)).group_by(FindingModel.severity))).all()  # fmt: skip
-            alerts = (await db.execute(select(func.count()).select_from(Alert).where(Alert.state != "resolved"))).scalar_one()
+            alerts = (
+                await db.execute(select(func.count()).select_from(Alert).where(Alert.state != "resolved"))
+            ).scalar_one()
             inet = await internet_status(db, now=now)
             sources = list((await db.execute(select(DataSource).order_by(DataSource.id))).scalars())
         return NetworkSummary(
@@ -564,13 +631,15 @@ class Query:
 
 def build_schema() -> strawberry.Schema:
     cfg = get_config()
+    max_depth = cfg.graphql_max_depth
+    # Factories (not instances): Strawberry builds a fresh extension per request.
     extensions: list[Any] = [
-        QueryDepthLimiter(max_depth=cfg.graphql_max_depth),
-        MaxAliasesLimiter(max_alias_count=15),
-        MaxTokensLimiter(max_token_count=2000),
+        lambda: QueryDepthLimiter(max_depth=max_depth),
+        lambda: MaxAliasesLimiter(max_alias_count=15),
+        lambda: MaxTokensLimiter(max_token_count=2000),
     ]
     if not cfg.introspection_enabled:
-        extensions.append(DisableIntrospection())
+        extensions.append(DisableIntrospection)
     return strawberry.Schema(query=Query, extensions=extensions)
 
 

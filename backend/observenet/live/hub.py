@@ -115,13 +115,13 @@ class LiveHub:
 
     async def snapshot(self) -> dict[str, Any]:
         try:
-            raw = await get_redis().hgetall(CURRENT_HASH)  # type: ignore[misc]
+            raw = await get_redis().hgetall(CURRENT_HASH)
         except Exception:  # noqa: BLE001
             return {}
-        out = {}
+        out: dict[str, Any] = {}
         for key, value in raw.items():
             with contextlib.suppress(ValueError):
-                out[key] = json.loads(value)
+                out[str(key)] = json.loads(value)
         return out
 
     async def serve(self, client: Client) -> None:

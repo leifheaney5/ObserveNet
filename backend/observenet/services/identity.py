@@ -87,7 +87,9 @@ async def resolve_merged(session: AsyncSession, asset: Asset) -> Asset:
     return asset
 
 
-async def _asset_by_identity(session: AsyncSession, kind: str, value: str) -> tuple[Asset, AssetIdentity] | None:
+async def _asset_by_identity(
+    session: AsyncSession, kind: str, value: str
+) -> tuple[Asset, AssetIdentity] | None:
     row = (
         await session.execute(
             select(Asset, AssetIdentity)
@@ -209,8 +211,13 @@ async def reconcile_sighting(
         await session.flush()
         session.add(
             AssetIdentity(
-                asset_id=asset.id, kind=id_kind, value=id_value, confidence=confidence, source_id=source.id,
-                first_seen=now, last_seen=now,
+                asset_id=asset.id,
+                kind=id_kind,
+                value=id_value,
+                confidence=confidence,
+                source_id=source.id,
+                first_seen=now,
+                last_seen=now,
             )  # fmt: skip
         )
         created = True
@@ -247,8 +254,15 @@ async def resolve_agent_asset(
         session.add(asset)
         await session.flush()
         session.add(
-            AssetIdentity(asset_id=asset.id, kind="agent_uid", value=agent_uid, confidence="high",
-                          source_id=source.id, first_seen=now, last_seen=now)  # fmt: skip
+            AssetIdentity(
+                asset_id=asset.id,
+                kind="agent_uid",
+                value=agent_uid,
+                confidence="high",
+                source_id=source.id,
+                first_seen=now,
+                last_seen=now,
+            )  # fmt: skip
         )
         add_event(session, "agent.registered", f"Agent on {hostname} registered", asset_id=asset.id,
                   source_id=source.id, is_demo=source.is_demo)  # fmt: skip
@@ -261,7 +275,9 @@ async def resolve_agent_asset(
     return asset
 
 
-async def claim_agent_mac(session: AsyncSession, *, asset: Asset, source: DataSource, mac: str, now: datetime) -> None:
+async def claim_agent_mac(
+    session: AsyncSession, *, asset: Asset, source: DataSource, mac: str, now: datetime
+) -> None:
     """Register an agent's own NIC MAC. If a neighbour-cache asset already holds that MAC,
     merge it into the agent's asset *with an audit trail* (undoable), never silently."""
     if is_locally_administered(mac) or is_multicast_mac(mac):
@@ -294,14 +310,21 @@ class MergeError(ValueError):
 
 
 async def merge_assets(
-    session: AsyncSession, *, source_asset: Asset, target_asset: Asset, user_id: int | None, reason: str | None
+    session: AsyncSession,
+    *,
+    source_asset: Asset,
+    target_asset: Asset,
+    user_id: int | None,
+    reason: str | None,
 ) -> AssetMerge:
     if source_asset.id == target_asset.id:
         raise MergeError("cannot merge an asset into itself")
     if source_asset.merged_into_id is not None or target_asset.merged_into_id is not None:
         raise MergeError("one of the assets is already merged; unmerge it first")
     if source_asset.managed:
-        raise MergeError("the asset being merged away has a reporting agent; merge the other one into it instead")
+        raise MergeError(
+            "the asset being merged away has a reporting agent; merge the other one into it instead"
+        )
 
     await session.execute(
         update(AssetIdentity)
@@ -311,22 +334,32 @@ async def merge_assets(
     existing = {
         (o.ip, o.mac, o.source_id, o.kind)
         for o in (
-            await session.execute(select(AddressObservation).where(AddressObservation.asset_id == target_asset.id))
+            await session.execute(
+                select(AddressObservation).where(AddressObservation.asset_id == target_asset.id)
+            )
         ).scalars()
     }
     for obs in (
-        await session.execute(select(AddressObservation).where(AddressObservation.asset_id == source_asset.id))
+        await session.execute(
+            select(AddressObservation).where(AddressObservation.asset_id == source_asset.id)
+        )
     ).scalars():
         if (obs.ip, obs.mac, obs.source_id, obs.kind) in existing:
             continue  # identical sighting already on the target; leave the original in place
         obs.asset_id = target_asset.id
         obs.original_asset_id = source_asset.id
     source_asset.merged_into_id = target_asset.id
-    if source_asset.last_seen and (target_asset.last_seen is None or source_asset.last_seen > target_asset.last_seen):
+    if source_asset.last_seen and (
+        target_asset.last_seen is None or source_asset.last_seen > target_asset.last_seen
+    ):
         target_asset.last_seen = source_asset.last_seen
-    if source_asset.first_seen and (target_asset.first_seen is None or source_asset.first_seen < target_asset.first_seen):
+    if source_asset.first_seen and (
+        target_asset.first_seen is None or source_asset.first_seen < target_asset.first_seen
+    ):
         target_asset.first_seen = source_asset.first_seen
-    merge = AssetMerge(source_asset_id=source_asset.id, target_asset_id=target_asset.id, merged_by=user_id, reason=reason)
+    merge = AssetMerge(
+        source_asset_id=source_asset.id, target_asset_id=target_asset.id, merged_by=user_id, reason=reason
+    )
     session.add(merge)
     await session.flush()
     add_event(session, "device.merged", f"Device #{source_asset.id} merged into #{target_asset.id}",
@@ -345,7 +378,10 @@ async def unmerge(session: AsyncSession, *, merge: AssetMerge, user_id: int | No
         raise MergeError("the original asset no longer exists")
     await session.execute(
         update(AssetIdentity)
-        .where(AssetIdentity.asset_id == merge.target_asset_id, AssetIdentity.original_asset_id == source_asset.id)
+        .where(
+            AssetIdentity.asset_id == merge.target_asset_id,
+            AssetIdentity.original_asset_id == source_asset.id,
+        )
         .values(asset_id=source_asset.id, original_asset_id=None)
     )
     await session.execute(

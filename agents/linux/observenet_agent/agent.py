@@ -86,7 +86,11 @@ class Settings:
             p for p in env.get("OBSERVENET_EXCLUDE_INTERFACES", "lo,veth,ifb,dummy").split(",") if p
         )
         self.verify_tls = env.get("OBSERVENET_TLS_VERIFY", "true").lower() != "false"
-        if self.url.startswith("http://") and not _is_local_url(self.url) and env.get("OBSERVENET_ALLOW_PLAINTEXT") != "1":
+        if (
+            self.url.startswith("http://")
+            and not _is_local_url(self.url)
+            and env.get("OBSERVENET_ALLOW_PLAINTEXT") != "1"
+        ):
             raise SystemExit(
                 "Refusing to send the agent token over plain HTTP to a non-local host. Use https:// or set "
                 "OBSERVENET_ALLOW_PLAINTEXT=1 for a trusted local-only demo."
@@ -153,7 +157,10 @@ class Agent:
             self.capabilities["nic_counters"] = ("unavailable", str(exc))
             return
         self.errors.pop("nic_counters", None)
-        self.capabilities["nic_counters"] = ("supported", "psutil / /proc/net/dev cumulative counters, 1 s deltas")
+        self.capabilities["nic_counters"] = (
+            "supported",
+            "psutil / /proc/net/dev cumulative counters, 1 s deltas",
+        )
         live = set()
         for iface, (rx_b, tx_b, rx_p, tx_p) in counters.items():
             if self._skip(iface):
@@ -171,9 +178,9 @@ class Agent:
                                              "value": rate.per_second, "unit": unit,
                                              "interval_s": round(rate.elapsed_s, 3), "quality": "measured"})  # fmt: skip
         self.tracker.forget_missing(live)
-        for metric, value in (("host.cpu_pct", psutil.cpu_percent(interval=None)),
-                              ("host.mem_pct", psutil.virtual_memory().percent)):  # fmt: skip
-            self.pending_samples.append({"metric": metric, "label": "", "ts": now_wall.isoformat(), "value": value,
+        for metric, pct in (("host.cpu_pct", psutil.cpu_percent(interval=None)),
+                            ("host.mem_pct", psutil.virtual_memory().percent)):  # fmt: skip
+            self.pending_samples.append({"metric": metric, "label": "", "ts": now_wall.isoformat(), "value": pct,
                                          "unit": "percent", "interval_s": self.interval, "quality": "measured"})  # fmt: skip
 
     def collect_inventory(self) -> dict[str, Any]:
@@ -199,7 +206,9 @@ class Agent:
         listening = collectors.listening_sockets()
         docker = await collectors.docker_published_ports(self.s.docker_api_url)
         self.capabilities["listening_sockets"] = (
-            ("supported", listening.method) if listening.status == "ok" else (listening.status, listening.reason or "")
+            ("supported", listening.method)
+            if listening.status == "ok"
+            else (listening.status, listening.reason or "")
         )
         self.capabilities["docker_published_ports"] = (
             ("supported", docker.method) if docker.status == "ok" else (docker.status, docker.reason or "")
@@ -229,12 +238,17 @@ class Agent:
                 host, _scope = probes.validate_target(kind, spec["host"], spec.get("port"), interval,
                                                       default_gateway=gw[0] if gw else None)  # fmt: skip
             except probes.TargetRejected as exc:
-                outcome = probes.ProbeOutcome(False, None, "rejected", None, f"refused by agent policy: {exc}")
+                outcome = probes.ProbeOutcome(
+                    False, None, "rejected", None, f"refused by agent policy: {exc}"
+                )
             else:
                 if kind in ("gateway_icmp", "icmp"):
                     outcome = await self.icmp.ping(host, timeout)
-                    status = ("unavailable", self.icmp.unavailable_reason or "") if outcome.method == "unavailable" else (
-                        "supported", f"ICMP echo via {self.icmp.mode}")
+                    status = (
+                        ("unavailable", self.icmp.unavailable_reason or "")
+                        if outcome.method == "unavailable"
+                        else ("supported", f"ICMP echo via {self.icmp.mode}")
+                    )
                     self.capabilities["gateway_latency_probe"] = status
                 elif kind == "tcp":
                     outcome = await probes.tcp_probe(host, int(spec["port"]), timeout)
@@ -242,7 +256,11 @@ class Agent:
                     outcome = await probes.dns_probe(host, timeout)
             if outcome.method not in ("unavailable",):  # an unavailable prober is not a lost packet
                 prev = self.last_latency.get(target_id)
-                jitter = abs(outcome.latency_ms - prev) if outcome.success and outcome.latency_ms is not None and prev is not None else None
+                jitter = (
+                    abs(outcome.latency_ms - prev)
+                    if outcome.success and outcome.latency_ms is not None and prev is not None
+                    else None
+                )
                 self.last_latency[target_id] = outcome.latency_ms if outcome.success else None
                 self.pending_probes.append({
                     "target_id": target_id, "ts": utcnow().isoformat(), "success": outcome.success,
@@ -264,7 +282,9 @@ class Agent:
 
     def reconcile_probes(self) -> None:
         wanted = {p["target_id"]: p for p in self.config.get("probes", [])}
-        for tid in [t for t in self.probe_tasks if t not in wanted or self.probe_specs.get(t) != repr(wanted[t])]:
+        for tid in [
+            t for t in self.probe_tasks if t not in wanted or self.probe_specs.get(t) != repr(wanted[t])
+        ]:
             self.probe_tasks.pop(tid).cancel()
             self.probe_specs.pop(tid, None)
         for tid, spec in wanted.items():
@@ -307,7 +327,10 @@ class Agent:
                 await self.icmp.ping(str(host), 0.3)
                 sent += 1
                 await asyncio.sleep(1.0 / rate)
-        self.capabilities["active_discovery"] = ("supported", f"last sweep sent {sent} echo requests at ≤{rate:g}/s")
+        self.capabilities["active_discovery"] = (
+            "supported",
+            f"last sweep sent {sent} echo requests at ≤{rate:g}/s",
+        )
         self.inventory_due = 0.0  # read the neighbour cache right after the sweep
 
     async def maybe_speedtest(self) -> None:
@@ -318,8 +341,11 @@ class Agent:
             return
         now = time.monotonic()
         requested = cfg.get("requested_at")
-        on_demand = bool(requested) and requested != self.speedtest_served_request and (
-            not self.last_speedtest or now - self.last_speedtest > 600)
+        on_demand = (
+            bool(requested)
+            and requested != self.speedtest_served_request
+            and (not self.last_speedtest or now - self.last_speedtest > 600)
+        )
         interval = max(SPEEDTEST_MIN_INTERVAL_S, float(cfg.get("interval_hours", 6)) * 3600)
         scheduled = not self.last_speedtest or now - self.last_speedtest >= interval
         if not (on_demand or scheduled):
@@ -329,7 +355,9 @@ class Agent:
         limit = min(int(cfg.get("max_bytes", 25_000_000)), 500_000_000)
         received, start = 0, time.perf_counter()
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0), follow_redirects=False) as c:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(20.0, connect=5.0), follow_redirects=False
+            ) as c:
                 async with c.stream("GET", cfg["download_url"]) as resp:
                     resp.raise_for_status()
                     async for chunk in resp.aiter_bytes():
@@ -346,7 +374,10 @@ class Agent:
         self.pending_samples.append({"metric": "speedtest.download_bps", "label": httpx.URL(cfg["download_url"]).host,
                                      "ts": utcnow().isoformat(), "value": 8 * received / elapsed, "unit": "bit/s",
                                      "interval_s": interval, "quality": "measured"})  # fmt: skip
-        self.capabilities["capacity_test"] = ("supported", "single-stream HTTPS download; a lower bound on capacity")
+        self.capabilities["capacity_test"] = (
+            "supported",
+            "single-stream HTTPS download; a lower bound on capacity",
+        )
 
     # ------------------------------------------------------------ transport
 

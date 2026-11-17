@@ -94,7 +94,9 @@ class NullRouterProvider(RouterTelemetryProvider):
     name = "none"
 
     def capabilities(self) -> list[CapabilityReport]:
-        return [CapabilityReport(c, "unsupported", "No gateway provider is configured.") for c in RouterCapability]
+        return [
+            CapabilityReport(c, "unsupported", "No gateway provider is configured.") for c in RouterCapability
+        ]
 
 
 @dataclass(frozen=True)

@@ -226,4 +226,5 @@ export function TimeSeriesChart({ series, unit, spanSeconds, height = 220, ariaL
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const SERIES_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"] as const;

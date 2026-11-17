@@ -17,8 +17,15 @@ IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 DEFAULT_TCP_PORTS = frozenset({53, 80, 443, 853})
 MAX_DISCOVERY_ADDRESSES = 1024
 _HOSTNAME_RE = re.compile(r"^(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$")
-# Carrier-grade NAT space is private-ish but not the user's own LAN.
-_CGNAT = ipaddress.ip_network("100.64.0.0/10")
+# The only address space a home LAN legitimately uses. Python's ``is_private`` is much
+# broader ("not globally reachable": CGNAT, documentation and benchmarking ranges, ...), so
+# membership is checked against this explicit list instead.
+_LAN_NETWORKS: tuple[IPNetwork, ...] = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("fc00::/7"),  # IPv6 unique local addresses
+)
 
 
 class ScopeError(ValueError):
@@ -35,11 +42,7 @@ class ValidatedTarget:
 
 def is_private_lan(addr: IPAddress) -> bool:
     """RFC 1918 / ULA unicast only: no loopback, link-local, CGNAT, multicast or reserved."""
-    if addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_unspecified or addr.is_reserved:
-        return False
-    if addr.version == 4 and addr in _CGNAT:
-        return False
-    return addr.is_private
+    return any(addr.version == net.version and addr in net for net in _LAN_NETWORKS)
 
 
 def parse_approved_cidr(value: str) -> IPNetwork:
@@ -49,7 +52,9 @@ def parse_approved_cidr(value: str) -> IPNetwork:
     except ValueError as exc:
         raise ScopeError(f"{value!r} is not a valid CIDR (host bits must be zero): {exc}") from exc
     if not is_private_lan(net.network_address) or not is_private_lan(net.broadcast_address):
-        raise ScopeError(f"{net} is not private LAN address space; only your own private ranges may be approved")
+        raise ScopeError(
+            f"{net} is not private LAN address space; only your own private ranges may be approved"
+        )
     if net.version == 4 and net.prefixlen < 16:
         raise ScopeError(f"{net} is too broad; approve ranges of /16 or smaller")
     if net.version == 6 and net.prefixlen < 48:
@@ -65,7 +70,7 @@ def validate_discovery_cidr(value: str, approved: list[str]) -> IPNetwork:
     if net.num_addresses > MAX_DISCOVERY_ADDRESSES:
         raise ScopeError(f"{net} has {net.num_addresses} addresses; the limit is {MAX_DISCOVERY_ADDRESSES}")
     approved_nets = [parse_approved_cidr(c) for c in approved]
-    if not any(net.version == a.version and net.subnet_of(a) for a in approved_nets):  # type: ignore[arg-type]
+    if not any(net.version == a.version and net.subnet_of(a) for a in approved_nets):
         raise ScopeError(f"{net} is not inside any approved CIDR")
     return net
 
