@@ -499,6 +499,36 @@ h1 {
   text-transform: uppercase;
 }
 
+/* Logo tiles use a light plate in both themes so dark single-colour logos stay visible. */
+.tile.has-icon {
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.quick-item .tile.has-icon {
+  padding: 5px;
+}
+
+:root[data-theme="dark"] .tile.has-icon {
+  border-color: transparent;
+  background: #eef0ec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tile.has-icon {
+    border-color: transparent;
+    background: #eef0ec;
+  }
+}
+
 .chip .chip-dot {
   color: var(--tile-ink, var(--faint));
 }

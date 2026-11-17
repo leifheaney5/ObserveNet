@@ -41,7 +41,7 @@
     topbar: document.querySelector(".topbar"),
   };
 
-  var state = { services: [], categories: [], query: "", category: "", issuesOnly: false };
+  var state = { services: [], categories: [], query: "", category: "", issuesOnly: false, icons: {} };
   var pins = readList(STORE_PINS);
   var recent = readList(STORE_RECENT);
 
@@ -111,6 +111,24 @@
     if (words[0].length <= 3 && words[0] === words[0].toUpperCase()) return words[0].slice(0, 3);
     if (words.length > 1) return words[0][0] + words[1][0];
     return words[0].slice(0, 2);
+  }
+
+  /** The square at the left of a card: the tool's logo when one is installed, else its initials. */
+  function tile(service) {
+    var file = state.icons[service.id];
+    var node = h("span", { class: "tile", "aria-hidden": "true" });
+    if (!file) {
+      node.textContent = monogram(service.name);
+      return node;
+    }
+    var img = h("img", { src: "/icons/" + encodeURIComponent(file), alt: "", loading: "lazy", decoding: "async" });
+    img.addEventListener("error", function () {
+      node.classList.remove("has-icon");
+      node.textContent = monogram(service.name);
+    });
+    node.classList.add("has-icon");
+    node.appendChild(img);
+    return node;
   }
 
   function categoryClass(category) {
@@ -204,7 +222,7 @@
       h(
         "span",
         { class: "tile-wrap" },
-        h("span", { class: "tile", "aria-hidden": "true", text: monogram(service.name) }),
+        tile(service),
         h("span", { class: "status " + st.cls, role: "img", "aria-label": st.label, title: st.label + ". " + (service.status_note || "") + checked })
       ),
       h(
@@ -283,7 +301,7 @@
           h(
             "a",
             { class: "quick-item " + categoryClass(service.category), href: service.url, "data-id": service.id, rel: "noopener", title: hostOf(service.url) },
-            h("span", { class: "tile", "aria-hidden": "true", text: monogram(service.name) }),
+            tile(service),
             service.name,
             pinned ? icon(STAR, true) : null
           )
@@ -518,12 +536,17 @@
   }
 
   function load() {
-    fetch("/services.json", { cache: "no-store" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        return response.json();
-      })
-      .then(function (data) {
+    var icons = fetch("/icons/index.json", { cache: "no-store" })
+      .then(function (response) { return response.ok ? response.json() : {}; })
+      .catch(function () { return {}; }); // no logos installed: lettered tiles everywhere
+    var services = fetch("/services.json", { cache: "no-store" }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.json();
+    });
+    Promise.all([services, icons])
+      .then(function (loaded) {
+        var data = loaded[0];
+        state.icons = loaded[1] && typeof loaded[1] === "object" ? loaded[1] : {};
         if (!Array.isArray(data)) throw new Error("unexpected format");
         state.services = data
           .filter(function (s) { return s && s.id && s.name && s.url; })
