@@ -236,6 +236,10 @@ Not passing or not run, stated plainly:
 - A restart on existing volumes initially put Redis in a crash loop (root with all
   capabilities dropped could not read its own data directory). Fixed by running Redis as
   its unprivileged user; fresh-volume and restart cases both re-verified.
+- Recreating only the API container (as any `.env` change does) left the web proxy pointing
+  at the API's old address, so every API call returned 502 until the web container was
+  restarted. Found on `linux-leif`, reproduced in the sandbox, fixed by resolving the API
+  at request time in `frontend/nginx.conf`, then re-verified with the real-mode e2e run.
 - Not run at all: the Windows agent, the systemd unit, the GitHub Actions workflow, the
   `tunnel` and `docker-inventory` profiles, and any deployment to `linux-leif` or the
   public hostname. The real-mode *Resolved* transition was not exercised live (see
