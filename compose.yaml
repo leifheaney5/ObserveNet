@@ -71,9 +71,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    # Run as the image's unprivileged redis user from the start. (Starting as root with
+    # capabilities dropped breaks on restart: root can no longer read the redis-owned AOF dir.)
+    user: redis
+    read_only: true
     cap_drop:
       - ALL
-    cap_add: [SETGID, SETUID, CHOWN]
     security_opt:
       - no-new-privileges:true
 

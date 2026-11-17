@@ -210,6 +210,7 @@ Nothing here was run on `linux-leif` or on GitHub Actions.
 | Migrations | Alembic up → down → up inside the backend suite; `migrate` service in Compose | pass |
 | Image builds | backend, web, collector images | built |
 | Compose, real mode | `docker compose up -d` | all 7 services healthy; containerized non-root collector reported live NIC throughput, ICMP gateway latency (`icmp_dgram`), neighbour sightings and 2 findings from this host's socket table |
+| Restart cycle | `docker compose down` then `docker compose up -d` on existing volumes | all services healthy again; Redis reloads its AOF, data keeps flowing |
 | End to end, demo mode | `E2E_MODE=demo npm run e2e` against the Compose stack | **8 passed**, including Find → Verify (*still observed*) → Fix → Verify (*resolved* with before/after diff) |
 | End to end, real mode | `E2E_MODE=real npm run e2e` against the Compose stack | **7 passed**, 1 skipped (demo-only spec) |
 | Verify on real data | `POST /findings/{id}/verify` on a real finding | fresh evidence ~5 s after the request → *still observed* (correct: nothing was changed) |
@@ -223,6 +224,9 @@ Not passing or not run, stated plainly:
   version (build/test tooling only; nothing shipped to the browser).
 - The end-to-end run first failed 1 of 8: the WebSocket was rejected behind nginx because
   the proxy dropped the port from `Host`. Fixed in `frontend/nginx.conf`, then re-run.
+- A restart on existing volumes initially put Redis in a crash loop (root with all
+  capabilities dropped could not read its own data directory). Fixed by running Redis as
+  its unprivileged user; fresh-volume and restart cases both re-verified.
 - Not run at all: the Windows agent, the systemd unit, the GitHub Actions workflow, the
   `tunnel` and `docker-inventory` profiles, and any deployment to `linux-leif` or the
   public hostname. The real-mode *Resolved* transition was not exercised live (see
