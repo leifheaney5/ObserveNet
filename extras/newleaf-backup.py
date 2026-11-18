@@ -6,9 +6,12 @@
     python3 newleaf-backup.py --run --encrypt --to gdrive:Backups/newleaf --to b2:my-bucket/newleaf
 
 Nothing is deleted or changed in the app. --run needs sudo (Docker volumes are root-owned).
---stop gives a guaranteed-consistent copy at the cost of a short outage; the app is always
-started again, even if the backup fails. --encrypt asks for a passphrase and uploads only the
-encrypted file. --to takes rclone destinations and may be repeated.
+A database is saved as a dump taken from the running database, which is consistent without an
+outage; its raw files are then left out unless --stop is given. --stop stops the app while files
+are copied and always starts it again. --add PATH puts an extra folder in the archive, --skip PATH
+leaves a mount out. --encrypt asks for a passphrase (twice), checks that the encrypted file
+decrypts back to the original, and uploads only the encrypted file. --to takes rclone
+destinations and may be repeated.
 """
 
 from __future__ import annotations
@@ -71,20 +74,33 @@ def find_project() -> tuple[str | None, list[dict]]:
     return project, json.loads(sh(["docker", "inspect", *sorted(names)]).stdout)
 
 
-def collect_sources(containers: list[dict]) -> tuple[list[dict], list[str]]:
+def collect_sources(containers: list[dict], extra: list[str], skip: list[str]) -> tuple[list[dict], list[str]]:
     """Folders and files to archive: the compose project folder first, then every data mount."""
     sources: list[dict] = []
     skipped: list[str] = []
     seen: set[str] = set()
 
-    def add(path: str, what: str) -> None:
+    skip_real = {os.path.realpath(os.path.expanduser(p)) for p in skip}
+
+    def add(path: str, what: str, container: str | None = None) -> None:
         path = os.path.realpath(path)
         if path in seen:
+            return
+        if path in skip_real:
+            seen.add(path)
+            skipped.append(f"{path} ({what}): left out with --skip")
             return
         if any(path == s["path"] or path.startswith(s["path"] + "/") for s in sources):
             return  # already inside something that is being archived
         seen.add(path)
-        sources.append({"path": path, "what": what})
+        sources.append({"path": path, "what": what, "container": container})
+
+    for path in extra:
+        path = os.path.expanduser(path)
+        if os.path.isdir(path):
+            add(path, "added with --add")
+        else:
+            skipped.append(f"{path}: given with --add but is not a folder on this machine")
 
     for c in containers:
         workdir = c["Config"]["Labels"].get("com.docker.compose.project.working_dir")
@@ -99,11 +115,14 @@ def collect_sources(containers: list[dict]) -> tuple[list[dict], list[str]]:
             real = os.path.realpath(src)
             if any(real == s["path"] or real.startswith(s["path"] + "/") for s in sources):
                 continue  # already inside a folder that is being archived
+            if real in skip_real:
+                add(src, f"-> {name}:{dst}", name)  # records it as left out
+                continue
             if src.endswith(".sock") or src.startswith(SKIP_PREFIXES) or src == "/":
                 skipped.append(f"{src} -> {name}:{dst} (system path, not app data)")
                 continue
             label = f"volume '{m['Name']}'" if m.get("Type") == "volume" else "bind mount"
-            add(src, f"{label} -> {name}:{dst}")
+            add(src, f"{label} -> {name}:{dst}", name)
     return sources, skipped
 
 
@@ -181,14 +200,17 @@ def main() -> int:
     ap.add_argument("--to", action="append", default=[], metavar="REMOTE:PATH", help="rclone destination, repeatable")
     ap.add_argument("--max-gb", type=float, default=5.0, help="leave out any single mount bigger than this (default 5)")
     ap.add_argument("--include", action="append", default=[], metavar="PATH", help="keep this mount even if it is over --max-gb")
+    ap.add_argument("--add", action="append", default=[], metavar="PATH", help="extra folder to put in the archive, repeatable")
+    ap.add_argument("--skip", action="append", default=[], metavar="PATH", help="mount to leave out, repeatable")
     args = ap.parse_args()
 
     project, containers = find_project()
     if not containers:
         print("No container named newleaf was found on this machine (docker ps -a). Nothing to back up.")
         return 1
-    sources, skipped = collect_sources(containers)
+    sources, skipped = collect_sources(containers, args.add, args.skip)
     dbs = detect_databases(containers)
+    dumped = {d["name"] for d in dbs if d["cmd"] and d["running"]}
 
     if args.run and subprocess.run(["sudo", "-v"]).returncode != 0:
         print("sudo is required to read Docker volumes; stopping.")
@@ -197,7 +219,8 @@ def main() -> int:
     limit = int(args.max_gb * 1024**3)
     for s in sources:
         s["size"] = du(s["path"], use_sudo=args.run)
-        s["keep"] = s["size"] is None or s["size"] <= limit or s["path"] in {os.path.realpath(p) for p in args.include}
+        s["raw_db"] = s["container"] in dumped and not args.stop  # saved as a dump instead of live raw files
+        s["keep"] = not s["raw_db"] and (s["size"] is None or s["size"] <= limit or s["path"] in {os.path.realpath(p) for p in args.include})
 
     print(f"== New Leaf backup: {'RUNNING' if args.run else 'PREVIEW (nothing is changed)'}")
     print(f"Compose project: {project or '(none; matched by container name)'}")
@@ -207,6 +230,8 @@ def main() -> int:
     print("What goes into the archive:")
     for s in sources:
         flag = "" if s["keep"] else f"   <-- LEFT OUT: over {args.max_gb:g} GB (add --include {s['path']} to keep it)"
+        if s["raw_db"]:
+            flag = "   <-- LEFT OUT: saved as a database dump instead (raw files of a running database are not a safe copy)"
         print(f"  {human(s['size']):>26}  {s['path']}\n{'':30}{s['what']}{flag}")
     for row in skipped:
         print(f"  {'not included':>26}  {row}")
@@ -245,7 +270,6 @@ def main() -> int:
     staging = OUT_DIR / f".staging-{stamp}"
     (staging / "db").mkdir(parents=True)
     archive = OUT_DIR / f"newleaf-{stamp}.tar.gz"
-    names = [c["Name"].lstrip("/") for c in containers]
     running = [c["Name"].lstrip("/") for c in containers if c["State"].get("Running")]
     problems: list[str] = []
 
@@ -259,9 +283,10 @@ def main() -> int:
         with target.open("wb") as f:
             r = subprocess.run(d["cmd"], stdout=f, stderr=subprocess.PIPE)
         if r.returncode != 0 or target.stat().st_size == 0:
-            problems.append(f"{d['name']}: dump FAILED ({r.stderr.decode(errors='ignore').strip()[-200:]})")
-        else:
-            print(f"Dumped {d['name']} ({human(target.stat().st_size)})")
+            shutil.rmtree(staging, ignore_errors=True)
+            print(f"Database dump of {d['name']} FAILED; no backup was made.\n{r.stderr.decode(errors='ignore').strip()[-400:]}")
+            return 1
+        print(f"Dumped {d['name']} ({human(target.stat().st_size)})")
 
     manifest = [
         f"New Leaf backup made {time.strftime('%Y-%m-%d %H:%M:%S %Z')} on {os.uname().nodename}",
@@ -269,10 +294,14 @@ def main() -> int:
         *[f"  {c['Name'].lstrip('/')}  {c['Config'].get('Image')}  {c['State'].get('Status')}" for c in containers],
         "", "Included (paths in this archive are the original absolute paths without the leading /):",
         *[f"  {s['path']}  [{s['what']}]" for s in sources if s["keep"]],
-        "", "Left out:", *[f"  {s['path']}  (over the size limit)" for s in sources if not s["keep"]], *[f"  {r}" for r in skipped],
+        "", "Left out:",
+        *[f"  {s['path']}  ({'raw database files; use the dump in db/' if s['raw_db'] else 'over the size limit'})" for s in sources if not s["keep"]],
+        *[f"  {r}" for r in skipped],
+        "", "Database dumps in db/:", *[f"  {d['file']}  ({d['kind']}, made with: {' '.join(d['cmd'][:2] + d['cmd'][-3:] if d['kind'] != 'mysql' else [d['tool']])})" for d in dbs if d["cmd"] and d["running"]],
         "", f"App stopped during the copy: {'yes' if args.stop else 'no'}",
-        "", "Restore: stop the app, extract with  sudo tar -xzpf <archive> -C /  (puts every file back at its",
-        "original path), load any dump from db/ into its database container, then start the app.",
+        "", "Restore: extract with  sudo tar -xzpf <archive> -C /  (puts every file back at its original path),",
+        "start the database container empty, load its dump, then start the rest. For a postgres dump:",
+        "  docker exec -i <postgres container> psql -U <POSTGRES_USER> -d postgres < db/<file>.sql",
     ]
     (staging / "MANIFEST.txt").write_text("\n".join(manifest) + "\n")
     (staging / "containers.json").write_text(json.dumps(containers, indent=1))
@@ -288,8 +317,17 @@ def main() -> int:
         r = sh(tar)
     finally:
         if args.stop and running:
-            started = sh(["docker", "start", *running])
-            print(f"Started {', '.join(running)} again" if started.returncode == 0 else f"!! COULD NOT RESTART: run  docker start {' '.join(running)}\n{started.stderr}")
+            db_names = {d["name"] for d in dbs}
+            first = [n for n in running if n in db_names]
+            rest = [n for n in running if n not in db_names]
+            if first:
+                sh(["docker", "start", *first])
+                time.sleep(5)
+            sh(["docker", "start", *rest]) if rest else None
+            time.sleep(3)
+            up = set(sh(["docker", "ps", "--format", "{{.Names}}"]).stdout.split())
+            down = [n for n in running if n not in up]
+            print(f"Started {', '.join(running)} again" if not down else f"!! NOT RUNNING after restart: {', '.join(down)}. Run:  docker start {' '.join(down)}")
     shutil.rmtree(staging, ignore_errors=True)
     if r.returncode not in (0, 1) or not archive.exists():  # tar exit 1 = a file changed while being read
         print("Archive FAILED:\n" + r.stderr[-800:])
@@ -311,17 +349,35 @@ def main() -> int:
     upload = archive
     if args.encrypt:
         upload = pathlib.Path(str(archive) + ".gpg")
-        env = dict(os.environ)
-        for fd in (0, 1, 2):
-            if os.isatty(fd):
-                env["GPG_TTY"] = os.ttyname(fd)
+        print("Encrypting: choose a passphrase and keep it somewhere safe; without it the encrypted copies are useless.")
+        while True:
+            phrase = getpass.getpass("  Passphrase: ")
+            if len(phrase) < 8:
+                print("  Use at least 8 characters.")
+            elif phrase != getpass.getpass("  Again:      "):
+                print("  They do not match; try again.")
+            else:
                 break
-        print("Encrypting: choose a passphrase and keep it somewhere safe; without it the cloud copies are useless.")
-        if subprocess.run(["gpg", "--symmetric", "--cipher-algo", "AES256", "--no-symkey-cache", "-o", str(upload), str(archive)], env=env).returncode != 0:
-            print("Encryption failed; nothing was uploaded.")
+        gpg = ["gpg", "--batch", "--yes", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+        enc = subprocess.run([*gpg, "--symmetric", "--cipher-algo", "AES256", "-o", str(upload), str(archive)], input=(phrase + "\n").encode(), capture_output=True)
+        if enc.returncode != 0:
+            upload.unlink(missing_ok=True)
+            print("Encryption failed; nothing was uploaded. The unencrypted backup above is complete.\n" + enc.stderr.decode(errors="ignore")[-400:])
             return 1
         os.chmod(upload, 0o600)
-        print(f"Encrypted copy: {upload}")
+        dec = subprocess.Popen([*gpg, "--decrypt", str(upload)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        dec.stdin.write((phrase + "\n").encode())
+        dec.stdin.close()
+        check = hashlib.sha256()
+        for chunk in iter(lambda: dec.stdout.read(1 << 20), b""):
+            check.update(chunk)
+        if dec.wait() != 0 or check.hexdigest() != digest:
+            upload.unlink(missing_ok=True)
+            print("The encrypted file did not decrypt back to the original; nothing was uploaded. The unencrypted backup above is complete.")
+            return 1
+        del phrase
+        print(f"Encrypted copy: {upload}  (decrypts back to the original with your passphrase: checked)")
+        print(f"  To open it later:  gpg --decrypt -o {archive.name} {upload.name}")
 
     for dest in args.to:
         r = subprocess.run(["rclone", "copy", str(upload), dest, "--stats-one-line", "--stats", "10s", "-v"])
@@ -339,7 +395,8 @@ def main() -> int:
         print("! " + p)
     user, host = getpass.getuser(), server_address()
     print("\nCopy to your Windows PC (run in PowerShell on that PC, not here):")
-    print(f'  mkdir -Force "$HOME\\Backups\\newleaf" | Out-Null; scp {user}@{host}:backups/newleaf/{upload.name} "$HOME\\Backups\\newleaf\\"')
+    print(f'  mkdir -Force "$HOME\\Backups\\newleaf" | Out-Null; scp {user}@{host}:backups/newleaf/{archive.name} "$HOME\\Backups\\newleaf\\"; (Get-FileHash "$HOME\\Backups\\newleaf\\{archive.name}").Hash')
+    print(f"  The hash it prints must equal (ignoring upper/lower case): {digest}")
     return 2 if problems else 0
 
 
